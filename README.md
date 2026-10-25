@@ -16,15 +16,15 @@ DofusSharp/
     └── DofusSharp.Tests/              # Pruebas unitarias de dominio y combate
 ```
 
-`DofusSharp.Combat` depende de `DofusSharp.Domain`; `DofusSharp.Application` orquesta ambos sin mezclar estado de partida con algoritmos. En producción, la confirmación del movimiento debe hacerse desde un caso de uso: validar origen/destino y ocupación, recalcular el camino sobre el estado vigente, comprobar PM y aplicar posición/coste de forma atómica. `LineOfSight` queda como dato de casilla para que el cálculo de visión se implemente como servicio independiente.
+`DofusSharp.Combat` y `DofusSharp.GameState` dependen de `DofusSharp.Domain`; `DofusSharp.Application` orquesta ambas capas. `TurnManager` emite el inicio de cada turno y el orquestador conecta ese evento con los servicios que gestionan cooldowns. En producción, la confirmación del movimiento debe hacerse desde un caso de uso: validar origen/destino y ocupación, recalcular el camino sobre el estado vigente, comprobar PM y aplicar posición/coste de forma atómica. `LineOfSight` queda como dato de casilla para que el cálculo de visión se implemente como servicio independiente.
 
 ## Roadmap
 
-1. **Base del combate** — dominio de casillas y combatientes, distancias, A* ortogonal y pruebas de regresión.
+1. **Base del combate** — ✅ dominio de casillas y combatientes, distancias, A* ortogonal y pruebas de regresión.
 2. **Estado y ocupación** — tablero de combate con ocupación por combatiente y validación atómica de movimientos.
-3. **Gestión de turnos** — orden de iniciativa, ciclo de equipos, restauración de PA/PM y condiciones de fin de combate.
+3. **Gestión de turnos** — en progreso: cola estable por iniciativa, avance circular y refresco de PA/PM en `DofusSharp.GameState`; queda conectar bajas y fin de combate.
 4. **Línea de visión** — trazado de celdas, bloqueos del terreno y reglas de alcance para hechizos.
-5. **Sistema de hechizos** — definición de hechizos, costes PA, alcance, objetivos, efectos y resolución determinista.
+5. **Sistema de hechizos** — en progreso: definición de hechizos, coste PA, alcance Manhattan, daño base y cooldown por turno del lanzador; quedan áreas, línea de visión y efectos.
 6. **Presentación isométrica** — conversión entre coordenadas lógicas y pantalla, selección de celdas y animación desacoplada del dominio.
 7. **Integración y datos** — serialización de mapas/combates, carga de escenarios y puntos de extensión para cliente de juego.
 
