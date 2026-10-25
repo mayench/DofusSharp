@@ -36,6 +36,19 @@ public sealed class AStarPathfinderTests
     }
 
     [Fact]
+    public void FindPath_AvoidsDynamicallyOccupiedCell()
+    {
+        var grid = new GameGrid(5, 3);
+        var occupiedCells = new HashSet<(int X, int Y)> { (1, 0) };
+
+        var result = _pathfinder.FindPath(grid, 0, 0, 2, 0, occupiedCells);
+
+        Assert.NotNull(result);
+        Assert.Equal(4, result.MovementCost);
+        Assert.DoesNotContain(result.Path, cell => cell.X == 1 && cell.Y == 0);
+    }
+
+    [Fact]
     public void FindPath_ReturnsNullWhenDestinationIsUnreachable()
     {
         var grid = new GameGrid(3, 3);

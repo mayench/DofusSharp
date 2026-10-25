@@ -25,7 +25,7 @@ DofusSharp/
 3. **Gestión de turnos** — en progreso: cola estable por iniciativa, avance circular y refresco de PA/PM en `DofusSharp.GameState`; queda conectar bajas y fin de combate.
 4. **Línea de visión** — en progreso: Bresenham en coordenadas lógicas, bloqueos por terreno/opacidad e integración obligatoria con hechizos.
 5. **Sistema de hechizos** — en progreso: definición de hechizos, coste PA, alcance Manhattan, daño base y cooldown por turno del lanzador; quedan áreas, línea de visión y efectos.
-6. **Presentación isométrica** — conversión entre coordenadas lógicas y pantalla, selección de celdas y animación desacoplada del dominio.
+6. **Presentación isométrica** — en progreso: proyección de la cuadrícula, selección de destinos, vista previa A*, movimiento animado con coste de PM, HUD y paso de turnos.
 7. **Integración y datos** — serialización de mapas/combates, carga de escenarios y puntos de extensión para cliente de juego.
 
 Cada módulo debe mantener las reglas puras en `Domain`/`Combat`, y dejar la orquestación, persistencia y presentación en capas separadas. La solución debe incorporar los proyectos cuando estos módulos pasen de propuesta a implementación.
