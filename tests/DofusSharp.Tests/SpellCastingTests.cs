@@ -12,7 +12,7 @@ public sealed class SpellCastingTests
         var caster = CreateFighter("Cra", 0, 0, actionPoints: 6, initiative: 20);
         var target = CreateFighter("Iop", 2, 0, hp: 100, initiative: 10);
         var spell = CreateSpell(cost: 3, minRange: 1, maxRange: 3, damage: 25);
-        var service = new SpellCastingService();
+        var service = new SpellCastingService(new GameGrid());
 
         var result = service.TryCast(caster, target, spell);
 
@@ -28,7 +28,7 @@ public sealed class SpellCastingTests
         var target = CreateFighter("Iop", 5, 0, hp: 100);
         var spell = CreateSpell(cost: 3, minRange: 1, maxRange: 3, damage: 25);
 
-        var result = new SpellCastingService().TryCast(caster, target, spell);
+        var result = new SpellCastingService(new GameGrid()).TryCast(caster, target, spell);
 
         Assert.Equal(SpellCastResult.TargetOutOfRange, result);
         Assert.Equal(6, caster.ActionPoints);
@@ -41,7 +41,7 @@ public sealed class SpellCastingTests
         var caster = CreateFighter("Cra", 0, 0, actionPoints: 2);
         var target = CreateFighter("Iop", 1, 0, hp: 100);
 
-        var result = new SpellCastingService().TryCast(caster, target, CreateSpell(cost: 3));
+        var result = new SpellCastingService(new GameGrid()).TryCast(caster, target, CreateSpell(cost: 3));
 
         Assert.Equal(SpellCastResult.InsufficientActionPoints, result);
         Assert.Equal(2, caster.ActionPoints);
@@ -55,7 +55,7 @@ public sealed class SpellCastingTests
         var opponent = CreateFighter("Iop", 1, 0, actionPoints: 6, initiative: 10);
         var spell = CreateSpell(cost: 2, cooldown: 1);
         var turns = new TurnManager([caster, opponent]);
-        var service = new SpellCastingService();
+        var service = new SpellCastingService(new GameGrid());
         turns.TurnStarted += service.NotifyTurnStarted;
 
         Assert.Equal(SpellCastResult.Success, service.TryCast(caster, opponent, spell));
@@ -72,13 +72,59 @@ public sealed class SpellCastingTests
     {
         var caster = CreateFighter("Cra", 0, 0, hp: 0);
         var target = CreateFighter("Iop", 1, 0, hp: 100);
-        var service = new SpellCastingService();
+        var service = new SpellCastingService(new GameGrid());
         var spell = CreateSpell();
 
         Assert.Equal(SpellCastResult.CasterIsDead, service.TryCast(caster, target, spell));
         caster = CreateFighter("Cra", 0, 0);
         target.TakeDamage(100);
         Assert.Equal(SpellCastResult.TargetIsDead, service.TryCast(caster, target, spell));
+    }
+
+    [Fact]
+    public void TryCast_SucceedsWhenLineOfSightIsClear()
+    {
+        var grid = new GameGrid(5, 3);
+        var caster = CreateFighter("Cra", 0, 1);
+        var target = CreateFighter("Iop", 4, 1);
+        var spell = CreateSpell(minRange: 1, maxRange: 5, damage: 15);
+        var service = new SpellCastingService(grid);
+
+        var result = service.TryCast(caster, target, spell);
+
+        Assert.Equal(SpellCastResult.Success, result);
+        Assert.Equal(85, target.HP);
+    }
+
+    [Fact]
+    public void TryCast_RejectsSpellWhenIntermediateCellBlocksLineOfSight()
+    {
+        var grid = new GameGrid(5, 3);
+        grid.GetCell(2, 1).IsWalkable = false;
+        var caster = CreateFighter("Cra", 0, 1);
+        var target = CreateFighter("Iop", 4, 1);
+        var spell = CreateSpell(minRange: 1, maxRange: 5, damage: 15);
+        var service = new SpellCastingService(grid);
+
+        var result = service.TryCast(caster, target, spell);
+
+        Assert.Equal(SpellCastResult.LineOfSightBlocked, result);
+        Assert.Equal(6, caster.ActionPoints);
+        Assert.Equal(100, target.HP);
+    }
+
+    [Fact]
+    public void TryCast_RejectsSpellWhenIntermediateCellIsOpaque()
+    {
+        var grid = new GameGrid(5, 3);
+        grid.GetCell(2, 1).LineOfSight = false;
+        var caster = CreateFighter("Cra", 0, 1);
+        var target = CreateFighter("Iop", 4, 1);
+        var spell = CreateSpell(minRange: 1, maxRange: 5);
+
+        var result = new SpellCastingService(grid).TryCast(caster, target, spell);
+
+        Assert.Equal(SpellCastResult.LineOfSightBlocked, result);
     }
 
     private static Fighter CreateFighter(string name, int x = 0, int y = 0, int actionPoints = 6,
