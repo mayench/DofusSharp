@@ -18,5 +18,7 @@
              Link="Maps\arena.json"
              CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\*.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Spells\*.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\DofusRetro.ttf" Condition="Exists('Assets\DofusRetro.ttf')" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

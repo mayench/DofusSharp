@@ -19,6 +19,7 @@ var loadedMap = new JsonMapLoader().LoadFromFile(mapPath);
 var grid = loadedMap.Grid;
 Raylib.InitWindow(screenWidth, screenHeight, "DofusSharp - Aventuras del Mundo de los Doce");
 Raylib.SetTargetFPS(60);
+DofusTheme.Initialize();
 var chosenClass = ClassSelectionScreen.Choose();
 var opposingClass = chosenClass == PlayerClass.Ocra ? PlayerClass.Yopuka : PlayerClass.Ocra;
 var fighters = loadedMap.Fighters.Select(fighter => CopyForSelectedClass(fighter,
@@ -29,7 +30,8 @@ var battleState = new BattleStateService(grid);
 var spellCasting = new SpellCastingService(grid, new BresenhamLineOfSightService(), battleState);
 turnManager.TurnStarted += spellCasting.NotifyTurnStarted;
 var enemyAi = new EnemyAiService(grid, pathfinder, spellCasting, playerTeamId);
-IReadOnlyList<Spell> spells = ClassSpellKitProvider.GetKit(turnManager.CurrentFighter.Class);
+IReadOnlyList<Spell> spells = ClassSpellKitProvider.GetAvailableKit(turnManager.CurrentFighter.Class,
+    turnManager.CurrentFighter.Level);
 var experienceService = new BattleExperienceService();
 var renderer = new IsometricGrid(500f, 112f, 50f, 26f);
 var hud = new CombatHud();
@@ -69,7 +71,8 @@ while (!Raylib.WindowShouldClose())
             feedback = "Tiempo agotado. El turno se ha pasado automáticamente.";
         }
     }
-    spells = ClassSpellKitProvider.GetKit(turnManager.CurrentFighter.Class);
+    spells = ClassSpellKitProvider.GetAvailableKit(turnManager.CurrentFighter.Class,
+        turnManager.CurrentFighter.Level);
 
     // La recompensa se entrega al finalizar el combate; los puntos se invierten desde el overlay.
     var progressionFighter = fighters.FirstOrDefault(fighter => fighter.IsAlive && fighter.TeamId == playerTeamId);
@@ -132,7 +135,9 @@ while (!Raylib.WindowShouldClose())
             var clickHandledByHud = false;
 
         var requestedSpellIndex = Raylib.IsKeyPressed(KeyboardKey.One) ? 0
-            : Raylib.IsKeyPressed(KeyboardKey.Two) ? 1 : -1;
+            : Raylib.IsKeyPressed(KeyboardKey.Two) ? 1
+            : Raylib.IsKeyPressed(KeyboardKey.Three) ? 2
+            : Raylib.IsKeyPressed(KeyboardKey.Four) ? 3 : -1;
         if (Raylib.IsKeyPressed(KeyboardKey.Escape) || Raylib.IsKeyPressed(KeyboardKey.M) ||
             Raylib.IsMouseButtonPressed(MouseButton.Right))
         {
@@ -260,7 +265,7 @@ while (!Raylib.WindowShouldClose())
         timedFighterId = turnFighter.Id;
         remainingTurnSeconds = turnDurationSeconds;
     }
-    spells = ClassSpellKitProvider.GetKit(turnFighter.Class);
+    spells = ClassSpellKitProvider.GetAvailableKit(turnFighter.Class, turnFighter.Level);
     var currentFighter = turnFighter.IsAlive
         ? turnFighter
         : fighters.FirstOrDefault(fighter => fighter.IsAlive) ?? turnFighter;
@@ -297,6 +302,8 @@ while (!Raylib.WindowShouldClose())
 }
 
 renderer.Dispose();
+DofusTheme.Unload();
+hud.Dispose();
 Raylib.CloseWindow();
 
 static Fighter CopyForSelectedClass(Fighter source, PlayerClass playerClass)
@@ -377,7 +384,7 @@ static void DrawBattleOverlay(BattleResult result, string playerTeamId)
         ? "¡Empate!"
         : result.WinningTeamId == playerTeamId ? "¡Victoria!" : "¡Derrota!";
     var messageColor = message == "¡Victoria!" ? new Color(112, 214, 130, 255) : new Color(236, 190, 73, 255);
-    Raylib.DrawText(message, panelX + 125, panelY + 45, 48, messageColor);
-    Raylib.DrawText("Pulsa ESC para cerrar el combate", panelX + 90, panelY + 120, 20,
+    DofusTheme.DrawText(message, panelX + 125, panelY + 45, 48, messageColor);
+    DofusTheme.DrawText("Pulsa ESC para cerrar el combate", panelX + 90, panelY + 120, 20,
         new Color(234, 226, 201, 255));
 }

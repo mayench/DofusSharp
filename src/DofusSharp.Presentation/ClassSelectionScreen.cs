@@ -9,7 +9,7 @@ internal static class ClassSelectionScreen
 {
     private static readonly Color Parchment = new(232, 215, 165, 255);
     private static readonly Color Paper = new(246, 232, 190, 255);
-    private static readonly Color Ink = new(83, 53, 34, 255);
+    private static readonly Color Ink = new(75, 48, 31, 255);
     private static readonly Color Gold = new(177, 113, 35, 255);
 
     public static PlayerClass Choose()
@@ -39,13 +39,13 @@ internal static class ClassSelectionScreen
                 Raylib.BeginDrawing();
                 Raylib.ClearBackground(new Color(126, 135, 83, 255));
                 DrawBackdrop();
-                Raylib.DrawText("ELIGE TU CAMINO", 425, 45, 34, Ink);
-                Raylib.DrawText("Dos escuelas, dos formas de dominar el combate", 396, 91, 17, Ink);
-                DrawClassCard(205, 176, selected == 0, "YOPUKA", "El guerrero del combate cercano",
-                    "Fuerza y vitalidad", "Presión · Espada de Yopuka", yopuka);
-                DrawClassCard(685, 176, selected == 1, "OCRA", "La arquera que controla la distancia",
-                    "Agilidad y suerte", "Flecha perseguidora · Flecha ralentizante", ocra);
-                Raylib.DrawText("← / → para elegir     ·     INTRO o clic para comenzar", 376, 700, 16, Ink);
+                DofusTheme.DrawText("Elige tu camino", 445, 43, 34, Ink);
+                DofusTheme.DrawText("Dos escuelas. Dos formas de dominar el combate.", 396, 91, 17, Ink);
+                DrawClassCard(205, 176, selected == 0, "Yopuka", "Guerrero de fuerza y combate cercano",
+                    "TIERRA · FUERZA", "Presión · Intimidación", yopuka);
+                DrawClassCard(685, 176, selected == 1, "Ocra", "Arquera de precisión y largo alcance",
+                    "AIRE · AGILIDAD", "Flecha Mágica · Flecha de Retroceso", ocra);
+                DofusTheme.DrawText("← / → para elegir   ·   Intro o clic para comenzar", 376, 700, 16, Ink);
                 Raylib.EndDrawing();
             }
 
@@ -76,20 +76,20 @@ internal static class ClassSelectionScreen
         Raylib.DrawRectangle(x, y, 390, 492, fill);
         Raylib.DrawRectangleLines(x, y, 390, 492, selected ? Gold : new Color(161, 136, 86, 255));
         Raylib.DrawRectangle(x + 10, y + 10, 370, 5, selected ? Gold : new Color(191, 173, 127, 255));
-        Raylib.DrawText(title, x + 28, y + 26, 28, Ink);
-        Raylib.DrawText(subtitle, x + 28, y + 61, 14, Ink);
+        DofusTheme.DrawText(title, x + 28, y + 24, 31, Ink);
+        DofusTheme.DrawText(subtitle, x + 28, y + 61, 14, Ink);
 
         var scale = Math.Min(230f / portrait.Width, 290f / portrait.Height);
         var size = new Vector2(portrait.Width * scale, portrait.Height * scale);
         Raylib.DrawTextureEx(portrait, new Vector2(x + (390 - size.X) / 2, y + 82), 0, scale, Color.White);
 
         Raylib.DrawLine(x + 26, y + 383, x + 364, y + 383, new Color(185, 157, 104, 255));
-        Raylib.DrawText(attributes, x + 28, y + 399, 15, new Color(125, 72, 36, 255));
-        Raylib.DrawText(spells, x + 28, y + 425, 12, Ink);
+        DofusTheme.DrawText(attributes, x + 28, y + 397, 15, new Color(125, 72, 36, 255));
+        DofusTheme.DrawText(spells, x + 28, y + 425, 12, Ink);
         if (selected)
         {
             Raylib.DrawRectangle(x + 112, y + 455, 166, 27, new Color(121, 91, 51, 255));
-            Raylib.DrawText("SELECCIONADO", x + 127, y + 462, 12, Paper);
+            DofusTheme.DrawText("SELECCIONADO", x + 127, y + 462, 12, Paper);
         }
     }
 

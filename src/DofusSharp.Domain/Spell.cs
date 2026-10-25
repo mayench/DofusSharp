@@ -12,10 +12,11 @@ public sealed class Spell
     public int CooldownTurns { get; }
     public SpellScalingAttribute ScalingAttribute { get; }
     public SpellEffects Effects { get; }
+    public int RequiredCharacterLevel { get; }
 
     public Spell(string id, string name, int actionPointCost, int minimumRange, int maximumRange, int damage,
         int cooldownTurns, SpellScalingAttribute scalingAttribute = SpellScalingAttribute.Strength,
-        SpellEffects? effects = null)
+        SpellEffects? effects = null, int requiredCharacterLevel = 1)
     {
         if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("El identificador es obligatorio.", nameof(id));
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("El nombre es obligatorio.", nameof(name));
@@ -24,6 +25,7 @@ public sealed class Spell
         if (maximumRange < minimumRange) throw new ArgumentOutOfRangeException(nameof(maximumRange));
         if (damage < 0) throw new ArgumentOutOfRangeException(nameof(damage));
         if (cooldownTurns < 0) throw new ArgumentOutOfRangeException(nameof(cooldownTurns));
+        if (requiredCharacterLevel < 1) throw new ArgumentOutOfRangeException(nameof(requiredCharacterLevel));
 
         Id = id;
         Name = name;
@@ -34,6 +36,7 @@ public sealed class Spell
         CooldownTurns = cooldownTurns;
         ScalingAttribute = scalingAttribute;
         Effects = effects ?? SpellEffects.None;
+        RequiredCharacterLevel = requiredCharacterLevel;
         if (damage > 0 && Effects.HealingAmount > 0)
             throw new ArgumentException("Un hechizo no puede combinar daño directo y curación directa al objetivo.", nameof(effects));
     }
