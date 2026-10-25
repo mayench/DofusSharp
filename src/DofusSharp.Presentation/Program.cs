@@ -5,6 +5,7 @@ using DofusSharp.Combat.Pathfinding;
 using DofusSharp.Combat.Spells;
 using DofusSharp.Combat.State;
 using DofusSharp.Domain;
+using DofusSharp.GameState.Maps;
 using DofusSharp.GameState.Turns;
 using DofusSharp.Presentation;
 using Raylib_cs;
@@ -15,17 +16,10 @@ const float tileWidth = 48f;
 const float tileHeight = 24f;
 const string playerTeamId = "blue";
 
-var grid = new GameGrid(14, 20);
-// Terreno de ejemplo para mostrar bloqueos de movimiento y de visión.
-grid.GetCell(5, 7).IsWalkable = false;
-grid.GetCell(5, 7).LineOfSight = false;
-grid.GetCell(9, 10).LineOfSight = false;
-
-var fighters = new List<Fighter>
-{
-    new(Guid.NewGuid(), "Cra", 2, 4, actionPoints: 6, movementPoints: 5, hp: 100, initiative: 20, teamId: playerTeamId),
-    new(Guid.NewGuid(), "Iop", 7, 4, actionPoints: 6, movementPoints: 4, hp: 120, initiative: 10, teamId: "red")
-};
+var mapPath = Path.Combine(AppContext.BaseDirectory, "Maps", "arena.json");
+var loadedMap = new JsonMapLoader().LoadFromFile(mapPath);
+var grid = loadedMap.Grid;
+var fighters = loadedMap.Fighters.ToList();
 var turnManager = new TurnManager(fighters);
 var pathfinder = new AStarPathfinder();
 var battleState = new BattleStateService(grid);

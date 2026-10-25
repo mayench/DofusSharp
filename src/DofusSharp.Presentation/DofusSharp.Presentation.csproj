@@ -12,4 +12,10 @@
     <ProjectReference Include="..\DofusSharp.Combat\DofusSharp.Combat.csproj" />
     <ProjectReference Include="..\DofusSharp.GameState\DofusSharp.GameState.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\DofusSharp.GameState\Maps\Examples\arena.json"
+             Link="Maps\arena.json"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
