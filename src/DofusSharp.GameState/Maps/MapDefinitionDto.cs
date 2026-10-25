@@ -1,3 +1,5 @@
+using DofusSharp.Domain;
+
 namespace DofusSharp.GameState.Maps;
 
 /// <summary>Representación serializable de un mapa, independiente de las entidades de dominio.</summary>
@@ -30,4 +32,18 @@ public sealed class FighterSpawnDto
     public int MovementPoints { get; init; } = 3;
     public int HP { get; init; } = 100;
     public int Initiative { get; init; }
+    public PlayerClass PlayerClass { get; init; } = PlayerClass.None;
+    public FighterStatsDto Stats { get; init; } = new();
+}
+
+/// <summary>Valores de atributos base serializados en el archivo del mapa.</summary>
+public sealed class FighterStatsDto
+{
+    public int Vitality { get; init; }
+    public int Strength { get; init; }
+    public int Intelligence { get; init; }
+    public int Agility { get; init; }
+    public int Luck { get; init; }
+
+    internal Stats ToDomain() => new(Vitality, Strength, Intelligence, Agility, Luck);
 }

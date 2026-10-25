@@ -28,8 +28,10 @@ turnManager.TurnStarted += spellCasting.NotifyTurnStarted;
 var enemyAi = new EnemyAiService(grid, pathfinder, spellCasting, playerTeamId);
 var spells = new[]
 {
-    new Spell("quick-arrow", "Flecha rápida", actionPointCost: 3, minimumRange: 1, maximumRange: 5, damage: 18, cooldownTurns: 1),
-    new Spell("power-arrow", "Flecha potente", actionPointCost: 4, minimumRange: 2, maximumRange: 7, damage: 32, cooldownTurns: 2)
+    new Spell("quick-arrow", "Flecha rápida", actionPointCost: 3, minimumRange: 1, maximumRange: 5,
+        damage: 18, cooldownTurns: 1, scalingAttribute: SpellScalingAttribute.Strength),
+    new Spell("power-arrow", "Flecha potente", actionPointCost: 4, minimumRange: 2, maximumRange: 7,
+        damage: 32, cooldownTurns: 2, scalingAttribute: SpellScalingAttribute.Intelligence)
 };
 var renderer = new IsometricGrid(screenWidth / 2f, 150f, tileWidth, tileHeight);
 FighterMovementAnimation? movement = null;
@@ -139,7 +141,7 @@ while (!Raylib.WindowShouldClose())
                     else
                     {
                         var result = spellCasting.TryCast(activeFighter, target, selectedSpell);
-                        feedback = DescribeCastResult(result, selectedSpell, target);
+                        feedback = DescribeCastResult(result, activeFighter, selectedSpell, target);
                     }
                 }
             }
@@ -237,7 +239,7 @@ void ResolveEnemyTurn()
     if (pendingEnemyTurn is null) return;
     var result = enemyAi.ResolveAttack(pendingEnemyTurn, spells);
     feedback = result.CastSpell
-        ? $"IA: {result.Target.Name} recibe {result.Spell!.Damage} de {result.Spell.Name}."
+        ? $"IA: {result.Target.Name} recibe {result.Spell!.CalculateDamage(pendingEnemyTurn.Actor.Stats)} de {result.Spell.Name}."
         : $"{pendingEnemyTurn.Actor.Name} finaliza su turno sin hechizo válido.";
     pendingEnemyTurn = null;
     enemyTurnPlanned = false;
@@ -262,9 +264,9 @@ static int GetClickedSpellCard(Vector2 pointer, bool mousePressed)
     return -1;
 }
 
-static string DescribeCastResult(SpellCastResult result, Spell spell, Fighter target) => result switch
+static string DescribeCastResult(SpellCastResult result, Fighter caster, Spell spell, Fighter target) => result switch
 {
-    SpellCastResult.Success => $"{spell.Name}: {target.Name} recibe {spell.Damage} de daño.",
+    SpellCastResult.Success => $"{spell.Name}: {target.Name} recibe {spell.CalculateDamage(caster.Stats)} de daño.",
     SpellCastResult.InsufficientActionPoints => "PA insuficientes para lanzar el hechizo.",
     SpellCastResult.TargetOutOfRange => "El objetivo está fuera del alcance del hechizo.",
     SpellCastResult.LineOfSightBlocked => "La línea de visión está bloqueada.",
@@ -280,7 +282,7 @@ static void DrawHud(Fighter fighter, int roundNumber, IReadOnlyList<Spell> spell
     const int panelX = 970;
     const int panelY = 150;
     const int panelWidth = 282;
-    const int panelHeight = 450;
+    const int panelHeight = 500;
     var background = new Color(34, 42, 46, 255);
     var foreground = new Color(234, 226, 201, 255);
 
@@ -288,19 +290,24 @@ static void DrawHud(Fighter fighter, int roundNumber, IReadOnlyList<Spell> spell
     Raylib.DrawRectangleLines(panelX, panelY, panelWidth, panelHeight, new Color(91, 113, 104, 255));
     Raylib.DrawText("PERSONAJE ACTIVO", panelX + 18, panelY + 18, 16, new Color(236, 190, 73, 255));
     Raylib.DrawText(fighter.Name, panelX + 18, panelY + 48, 28, foreground);
-    Raylib.DrawText($"Vida: {fighter.HP}/{fighter.MaxHP}", panelX + 18, panelY + 96, 20, foreground);
-    Raylib.DrawText($"PA: {fighter.ActionPoints}/{fighter.MaxActionPoints}", panelX + 18, panelY + 132, 20, foreground);
-    Raylib.DrawText($"PM: {fighter.MovementPoints}/{fighter.MaxMovementPoints}", panelX + 18, panelY + 168, 20, foreground);
-    Raylib.DrawText($"Posición: ({fighter.X}, {fighter.Y})", panelX + 18, panelY + 204, 16, foreground);
-    Raylib.DrawText($"Ronda: {roundNumber}", panelX + 18, panelY + 220, 16, foreground);
-    Raylib.DrawText("HECHIZOS  (teclas 1 y 2)", panelX + 18, panelY + 244, 16, foreground);
+    Raylib.DrawText($"Clase: {fighter.Class}", panelX + 18, panelY + 82, 16, foreground);
+    Raylib.DrawText($"Vida: {fighter.HP}/{fighter.MaxHP}", panelX + 18, panelY + 106, 18, foreground);
+    Raylib.DrawText($"PA: {fighter.ActionPoints}/{fighter.MaxActionPoints}", panelX + 18, panelY + 132, 18, foreground);
+    Raylib.DrawText($"PM: {fighter.MovementPoints}/{fighter.MaxMovementPoints}", panelX + 18, panelY + 158, 18, foreground);
+    Raylib.DrawText($"VIT {fighter.Stats.Vitality}  FUE {fighter.Stats.Strength}  INT {fighter.Stats.Intelligence}",
+        panelX + 18, panelY + 190, 14, foreground);
+    Raylib.DrawText($"AGI {fighter.Stats.Agility}  SUE {fighter.Stats.Luck}",
+        panelX + 18, panelY + 210, 14, foreground);
+    Raylib.DrawText($"Posición: ({fighter.X}, {fighter.Y})   Ronda: {roundNumber}",
+        panelX + 18, panelY + 236, 14, foreground);
+    Raylib.DrawText("HECHIZOS  (teclas 1 y 2)", panelX + 18, panelY + 258, 16, foreground);
     for (var index = 0; index < spells.Count; index++)
     {
         var spell = spells[index];
         const int cardX = panelX + 14;
         const int cardWidth = panelWidth - 28;
         const int cardHeight = 54;
-        var cardY = panelY + 270 + index * (cardHeight + 8);
+        var cardY = panelY + 282 + index * (cardHeight + 8);
         var isSelected = selectedSpell?.Id == spell.Id;
         var cardColor = isSelected ? new Color(76, 94, 111, 255) : new Color(45, 55, 58, 255);
         Raylib.DrawRectangle(cardX, cardY, cardWidth, cardHeight, cardColor);
@@ -309,11 +316,12 @@ static void DrawHud(Fighter fighter, int roundNumber, IReadOnlyList<Spell> spell
         Raylib.DrawText($"{index + 1}. {spell.Name}  ·  {spell.ActionPointCost} PA", cardX + 8, cardY + 7, 15, foreground);
         var remainingCooldown = spellCasting.GetRemainingCooldownTurns(fighter, spell);
         var cooldownText = remainingCooldown == 0 ? "Listo" : $"CD {remainingCooldown}";
-        Raylib.DrawText($"Alcance {spell.MinimumRange}-{spell.MaximumRange}  ·  Daño {spell.Damage}  ·  {cooldownText}",
+        var effectiveDamage = spell.CalculateDamage(fighter.Stats);
+        Raylib.DrawText($"Alcance {spell.MinimumRange}-{spell.MaximumRange}  ·  Daño {effectiveDamage}  ·  {cooldownText}",
             cardX + 8, cardY + 31, 12, new Color(190, 201, 195, 255));
     }
     var modeLabel = selectedSpell is null ? "Modo: movimiento" : $"Modo: {selectedSpell.Name}";
-    Raylib.DrawText(modeLabel, panelX + 18, panelY + 414, 14, new Color(236, 190, 73, 255));
+    Raylib.DrawText(modeLabel, panelX + 18, panelY + 454, 14, new Color(236, 190, 73, 255));
 }
 
 static void DrawBattleOverlay(BattleResult result, string playerTeamId)

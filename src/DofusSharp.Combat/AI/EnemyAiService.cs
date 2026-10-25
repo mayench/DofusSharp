@@ -85,7 +85,7 @@ public sealed class EnemyAiService
         if (!plan.Actor.IsAlive || !plan.Target.IsAlive)
             return new EnemyTurnResult(plan.Target, null, null);
 
-        foreach (var spell in availableSpells.OrderByDescending(spell => spell.Damage)
+        foreach (var spell in availableSpells.OrderByDescending(spell => spell.CalculateDamage(plan.Actor.Stats))
                      .ThenBy(spell => spell.ActionPointCost))
         {
             if (_spellCasting.CanCastAt(plan.Actor, plan.Target.X, plan.Target.Y, spell) != SpellCastResult.Success)
