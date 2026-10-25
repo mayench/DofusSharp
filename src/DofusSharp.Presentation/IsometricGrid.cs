@@ -21,8 +21,8 @@ internal sealed class IsometricGrid : IDisposable
         _tileWidth = tileWidth;
         _tileHeight = tileHeight;
         var assets = Path.Combine(AppContext.BaseDirectory, "Assets");
-        _yopukaSprite = Raylib.LoadTexture(Path.Combine(assets, "yopuka.png"));
-        _ocraSprite = Raylib.LoadTexture(Path.Combine(assets, "ocra.png"));
+        _yopukaSprite = LoadCutoutSprite(Path.Combine(assets, "yopuka.png"));
+        _ocraSprite = LoadCutoutSprite(Path.Combine(assets, "ocra.png"));
     }
 
     /// <summary>Proyecta índices lógicos a centros de rombos en pantalla.</summary>
@@ -47,6 +47,8 @@ internal sealed class IsometricGrid : IDisposable
 
     public void Draw(GameGrid grid, int highlightedX, int highlightedY,
         IReadOnlySet<(int X, int Y)>? movementPath = null,
+        IReadOnlySet<(int X, int Y)>? spellRange = null,
+        IReadOnlySet<(int X, int Y)>? blockedSpellRange = null,
         IReadOnlySet<(int X, int Y)>? spellTargets = null)
     {
         // Dibujar de atrás hacia delante por suma de coordenadas evita que las filas se solapen mal.
@@ -62,8 +64,13 @@ internal sealed class IsometricGrid : IDisposable
                 var fill = GetCellColor(cell, x, y);
                 if (movementPath?.Contains((x, y)) == true)
                     fill = new Color(54, 145, 164, 255);
+                // El alcance se muestra aunque la casilla esté vacía; el tono apagado indica LoS bloqueada.
+                if (spellRange?.Contains((x, y)) == true)
+                    fill = new Color(214, 174, 83, 235);
+                if (blockedSpellRange?.Contains((x, y)) == true)
+                    fill = new Color(134, 91, 72, 235);
                 if (spellTargets?.Contains((x, y)) == true)
-                    fill = new Color(201, 102, 227, 255);
+                    fill = new Color(103, 157, 89, 255);
                 if (x == highlightedX && y == highlightedY)
                     fill = new Color(236, 190, 73, 255);
 
@@ -104,6 +111,16 @@ internal sealed class IsometricGrid : IDisposable
     {
         Raylib.UnloadTexture(_yopukaSprite);
         Raylib.UnloadTexture(_ocraSprite);
+    }
+
+    /// <summary>Elimina el fondo blanco de los retratos para integrarlos con transparencia al tablero.</summary>
+    private static Texture2D LoadCutoutSprite(string path)
+    {
+        var image = Raylib.LoadImage(path);
+        Raylib.ImageAlphaClear(ref image, Color.White, 0.08f);
+        var texture = Raylib.LoadTextureFromImage(image);
+        Raylib.UnloadImage(image);
+        return texture;
     }
 
     private void DrawDiamond(Vector2 center, Color fill, Color outline)

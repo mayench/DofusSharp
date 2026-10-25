@@ -123,6 +123,10 @@ public sealed class SpellCastingService
         return SpellCastResult.Success;
     }
 
+    /// <summary>Consulta LoS para presentar las celdas alcanzables sin intentar lanzar el hechizo.</summary>
+    public bool HasLineOfSight(int sourceX, int sourceY, int targetX, int targetY) =>
+        _lineOfSight.HasLineOfSight(_grid, sourceX, sourceY, targetX, targetY);
+
     public int GetRemainingCooldownTurns(Fighter caster, Spell spell)
     {
         ArgumentNullException.ThrowIfNull(caster);

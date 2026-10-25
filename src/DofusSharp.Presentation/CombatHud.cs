@@ -177,10 +177,10 @@ internal sealed class CombatHud
 
         Raylib.DrawLine(970, BottomDockY + 18, 970, BottomDockY + 130, new Color(68, 80, 81, 255));
         Raylib.DrawText("CONTROLES", 992, BottomDockY + 20, 10, Muted);
-        Raylib.DrawText("Clic: mover / lanzar", 992, BottomDockY + 42, 12, Ink);
-        Raylib.DrawText("1–2: hechizo   ·   Espacio: pasar", 992, BottomDockY + 61, 11, Muted);
+        Raylib.DrawText("Izq.: mover / lanzar · Der.: cancelar", 992, BottomDockY + 42, 11, Ink);
+        Raylib.DrawText("1–2: hechizo · M/Esc: mover · Espacio: pasar", 992, BottomDockY + 61, 9, Muted);
         Raylib.DrawText(Truncate(feedback, 35), 992, BottomDockY + 87, 11, Gold);
-        Raylib.DrawText(Truncate(modeText, 35), 992, BottomDockY + 106, 10, Muted);
+        Raylib.DrawText(Truncate(modeText, 48), 992, BottomDockY + 106, 10, Muted);
     }
 
     private static void DrawTurnClock(int centerX, int centerY, float remainingSeconds)

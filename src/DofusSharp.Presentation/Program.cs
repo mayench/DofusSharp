@@ -82,6 +82,8 @@ while (!Raylib.WindowShouldClose())
 
     PathResult? previewPath = null;
     var spellTargetCells = new HashSet<(int X, int Y)>();
+    var spellRangeCells = new HashSet<(int X, int Y)>();
+    var blockedSpellRangeCells = new HashSet<(int X, int Y)>();
     hoveredX = -1;
     hoveredY = -1;
 
@@ -131,7 +133,12 @@ while (!Raylib.WindowShouldClose())
 
         var requestedSpellIndex = Raylib.IsKeyPressed(KeyboardKey.One) ? 0
             : Raylib.IsKeyPressed(KeyboardKey.Two) ? 1 : -1;
-        if (Raylib.IsKeyPressed(KeyboardKey.Escape)) selectedSpell = null;
+        if (Raylib.IsKeyPressed(KeyboardKey.Escape) || Raylib.IsKeyPressed(KeyboardKey.M) ||
+            Raylib.IsMouseButtonPressed(MouseButton.Right))
+        {
+            selectedSpell = null;
+            feedback = "Modo de movimiento activo.";
+        }
 
         var clickedSpellIndex = CombatHud.GetClickedSpellIndex(pointer, mousePressed, spells.Count);
         if (clickedSpellIndex >= 0)
@@ -144,8 +151,16 @@ while (!Raylib.WindowShouldClose())
             var requestedSpell = spells[requestedSpellIndex];
             if (CombatHud.IsSpellReady(activeFighter, requestedSpell, spellCasting))
             {
-                selectedSpell = requestedSpell;
-                feedback = $"{requestedSpell.Name}: selecciona un objetivo válido.";
+                if (selectedSpell?.Id == requestedSpell.Id)
+                {
+                    selectedSpell = null;
+                    feedback = "Hechizo deseleccionado. Modo de movimiento activo.";
+                }
+                else
+                {
+                    selectedSpell = requestedSpell;
+                    feedback = $"{requestedSpell.Name}: selecciona un objetivo válido.";
+                }
             }
             else
             {
@@ -162,6 +177,16 @@ while (!Raylib.WindowShouldClose())
             for (var x = 0; x < grid.Width; x++)
             for (var y = 0; y < grid.Height; y++)
             {
+                var distance = GameGrid.ManhattanDistance(activeFighter.X, activeFighter.Y, x, y);
+                if (distance < selectedSpell.MinimumRange || distance > selectedSpell.MaximumRange)
+                    continue;
+
+                // El jugador puede leer el alcance completo, incluidos huecos y casillas tras obstáculos.
+                if (spellCasting.HasLineOfSight(activeFighter.X, activeFighter.Y, x, y))
+                    spellRangeCells.Add((x, y));
+                else
+                    blockedSpellRangeCells.Add((x, y));
+
                 var hasLivingTarget = fighters.Any(fighter => fighter != activeFighter && fighter.IsAlive &&
                     fighter.X == x && fighter.Y == y);
                 if (hasLivingTarget &&
@@ -169,7 +194,8 @@ while (!Raylib.WindowShouldClose())
                     spellTargetCells.Add((x, y));
             }
 
-            if (hasHoveredCell && spellTargetCells.Contains((cellX, cellY)))
+            if (hasHoveredCell && (spellRangeCells.Contains((cellX, cellY)) ||
+                                   blockedSpellRangeCells.Contains((cellX, cellY))))
             {
                 hoveredX = cellX;
                 hoveredY = cellY;
@@ -179,8 +205,11 @@ while (!Raylib.WindowShouldClose())
                         fighter.X == cellX && fighter.Y == cellY);
                     if (target is null)
                     {
-                        feedback = "Casilla válida, pero no hay un combatiente enemigo como objetivo.";
+                        feedback = "Alcance del hechizo: selecciona una casilla ocupada por un objetivo válido.";
                     }
+                    else if (!spellTargetCells.Contains((cellX, cellY)))
+                        feedback = DescribeCastResult(spellCasting.CanCastAt(activeFighter, cellX, cellY, selectedSpell),
+                            activeFighter, selectedSpell, target);
                     else
                     {
                         var result = spellCasting.TryCast(activeFighter, target, selectedSpell, fighters);
@@ -242,7 +271,7 @@ while (!Raylib.WindowShouldClose())
 
     Raylib.BeginDrawing();
     Raylib.ClearBackground(new Color(130, 142, 91, 255));
-    renderer.Draw(grid, hoveredX, hoveredY, pathCells, spellTargetCells);
+    renderer.Draw(grid, hoveredX, hoveredY, pathCells, spellRangeCells, blockedSpellRangeCells, spellTargetCells);
 
     foreach (var fighter in fighters.OrderBy(entity => entity.X + entity.Y))
     {
@@ -257,7 +286,7 @@ while (!Raylib.WindowShouldClose())
         ? hoveredX >= 0 && previewPath is not null
             ? $"Destino: ({hoveredX}, {hoveredY})   Coste: {previewPath.MovementCost} PM"
             : "Movimiento: pasa el cursor por una casilla alcanzable"
-        : $"HECHIZO: {selectedSpell.Name}   Objetivos válidos: morado   Esc: cancelar";
+        : "Rango oro · LoS bloqueada ocre · válido verde";
     hud.Draw(currentFighter, turnManager.RoundNumber, spells, selectedSpell, spellCasting, fighters,
         turnManager.CurrentFighter, remainingTurnSeconds, feedback, modeText);
     if (battleResult.IsFinished)
