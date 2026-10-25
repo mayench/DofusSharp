@@ -1,0 +1,33 @@
+{
+  "width": 14,
+  "height": 20,
+  "cells": [
+    { "x": 5, "y": 7, "isWalkable": false, "lineOfSight": false },
+    { "x": 9, "y": 10, "isWalkable": true, "lineOfSight": false },
+    { "x": 10, "y": 10, "isWalkable": false, "lineOfSight": true }
+  ],
+  "spawns": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "name": "Cra",
+      "teamId": "blue",
+      "x": 2,
+      "y": 4,
+      "actionPoints": 6,
+      "movementPoints": 5,
+      "hp": 100,
+      "initiative": 20
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000002",
+      "name": "Iop",
+      "teamId": "red",
+      "x": 7,
+      "y": 4,
+      "actionPoints": 6,
+      "movementPoints": 4,
+      "hp": 120,
+      "initiative": 10
+    }
+  ]
+}
