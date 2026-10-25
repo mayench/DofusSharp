@@ -35,4 +35,15 @@ public sealed record Stats
         SpellScalingAttribute.Luck => Luck,
         _ => 0
     };
+
+    /// <summary>Devuelve una copia con un punto adicional en la característica seleccionada.</summary>
+    public Stats AddPoint(CharacteristicAttribute attribute) => attribute switch
+    {
+        CharacteristicAttribute.Vitality => new Stats(Vitality + 1, Strength, Intelligence, Agility, Luck),
+        CharacteristicAttribute.Strength => new Stats(Vitality, Strength + 1, Intelligence, Agility, Luck),
+        CharacteristicAttribute.Intelligence => new Stats(Vitality, Strength, Intelligence + 1, Agility, Luck),
+        CharacteristicAttribute.Agility => new Stats(Vitality, Strength, Intelligence, Agility + 1, Luck),
+        CharacteristicAttribute.Luck => new Stats(Vitality, Strength, Intelligence, Agility, Luck + 1),
+        _ => throw new ArgumentOutOfRangeException(nameof(attribute))
+    };
 }
