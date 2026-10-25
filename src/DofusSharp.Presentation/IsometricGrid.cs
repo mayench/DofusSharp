@@ -99,7 +99,7 @@ internal sealed class IsometricGrid : IDisposable
             new Color(236, 223, 182, 235));
         Raylib.DrawRectangleLines((int)center.X - 34, (int)(center.Y - spriteHeight - 32), 68, 18,
             new Color(150, 113, 57, 255));
-        Raylib.DrawText(fighter.Name, (int)center.X - 29, (int)(center.Y - spriteHeight - 29), 11,
+        DofusTheme.DrawText(fighter.Name, (int)center.X - 29, (int)(center.Y - spriteHeight - 29), 11,
             fighter.IsAlive ? new Color(83, 53, 34, 255) : new Color(124, 117, 101, 255));
         Raylib.DrawRectangle((int)center.X - 19, (int)center.Y + 16, 38, 5, new Color(115, 72, 54, 255));
         var healthRatio = fighter.MaxHP == 0 ? 0f : (float)fighter.HP / fighter.MaxHP;
