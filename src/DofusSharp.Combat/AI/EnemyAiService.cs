@@ -77,7 +77,8 @@ public sealed class EnemyAiService
     /// Tras completar (o animar) el movimiento planificado, prueba los hechizos disponibles
     /// contra el objetivo; el servicio de lanzamiento vuelve a validar alcance, LoS, PA y cooldown.
     /// </summary>
-    public EnemyTurnResult ResolveAttack(EnemyTurnPlan plan, IReadOnlyList<Spell> availableSpells)
+    public EnemyTurnResult ResolveAttack(EnemyTurnPlan plan, IReadOnlyList<Spell> availableSpells,
+        IEnumerable<Fighter>? combatants = null)
     {
         ArgumentNullException.ThrowIfNull(plan);
         ArgumentNullException.ThrowIfNull(availableSpells);
@@ -91,7 +92,7 @@ public sealed class EnemyAiService
             if (_spellCasting.CanCastAt(plan.Actor, plan.Target.X, plan.Target.Y, spell) != SpellCastResult.Success)
                 continue;
 
-            var result = _spellCasting.TryCast(plan.Actor, plan.Target, spell);
+            var result = _spellCasting.TryCast(plan.Actor, plan.Target, spell, combatants);
             return new EnemyTurnResult(plan.Target, spell, result);
         }
 
