@@ -11,9 +11,11 @@ public sealed class Spell
     public int Damage { get; }
     public int CooldownTurns { get; }
     public SpellScalingAttribute ScalingAttribute { get; }
+    public SpellEffects Effects { get; }
 
     public Spell(string id, string name, int actionPointCost, int minimumRange, int maximumRange, int damage,
-        int cooldownTurns, SpellScalingAttribute scalingAttribute = SpellScalingAttribute.Strength)
+        int cooldownTurns, SpellScalingAttribute scalingAttribute = SpellScalingAttribute.Strength,
+        SpellEffects? effects = null)
     {
         if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("El identificador es obligatorio.", nameof(id));
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("El nombre es obligatorio.", nameof(name));
@@ -31,6 +33,9 @@ public sealed class Spell
         Damage = damage;
         CooldownTurns = cooldownTurns;
         ScalingAttribute = scalingAttribute;
+        Effects = effects ?? SpellEffects.None;
+        if (damage > 0 && Effects.HealingAmount > 0)
+            throw new ArgumentException("Un hechizo no puede combinar daño directo y curación directa al objetivo.", nameof(effects));
     }
 
     /// <summary>Aplica +1% de daño base por cada punto del atributo asociado (redondeo hacia abajo).</summary>

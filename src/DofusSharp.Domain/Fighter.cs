@@ -71,6 +71,41 @@ public sealed class Fighter
         HP = Math.Max(0, HP - amount);
     }
 
+    /// <summary>Restaura vida sin superar el máximo; no resucita combatientes derrotados.</summary>
+    public int Heal(int amount)
+    {
+        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount), "La curación no puede ser negativa.");
+        if (!IsAlive) return 0;
+        var healed = Math.Min(amount, MaxHP - HP);
+        HP += healed;
+        return healed;
+    }
+
+    /// <summary>Reduce PA actuales de forma acotada y devuelve cuántos puntos se retiraron.</summary>
+    public int ReduceActionPoints(int amount)
+    {
+        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));
+        var reduced = Math.Min(amount, ActionPoints);
+        ActionPoints -= reduced;
+        return reduced;
+    }
+
+    /// <summary>Reduce PM actuales de forma acotada y devuelve cuántos puntos se retiraron.</summary>
+    public int ReduceMovementPoints(int amount)
+    {
+        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));
+        var reduced = Math.Min(amount, MovementPoints);
+        MovementPoints -= reduced;
+        return reduced;
+    }
+
+    /// <summary>Desplaza la entidad por un efecto externo sin consumir sus PM de movimiento.</summary>
+    public void DisplaceTo(int x, int y)
+    {
+        X = x;
+        Y = y;
+    }
+
     /// <summary>Restaura PA y PM a los valores máximos al comenzar el turno.</summary>
     public void RefreshTurnResources()
     {

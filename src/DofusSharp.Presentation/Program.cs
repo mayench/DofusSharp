@@ -149,7 +149,7 @@ while (!Raylib.WindowShouldClose())
                     }
                     else
                     {
-                        var result = spellCasting.TryCast(activeFighter, target, selectedSpell);
+                        var result = spellCasting.TryCast(activeFighter, target, selectedSpell, fighters);
                         feedback = DescribeCastResult(result, activeFighter, selectedSpell, target);
                     }
                 }
@@ -247,7 +247,7 @@ PathResult? FindPathFor(Fighter fighter, int targetX, int targetY)
 void ResolveEnemyTurn()
 {
     if (pendingEnemyTurn is null) return;
-    var result = enemyAi.ResolveAttack(pendingEnemyTurn, spells);
+    var result = enemyAi.ResolveAttack(pendingEnemyTurn, spells, fighters);
     feedback = result.CastSpell
         ? $"IA: {result.Target.Name} recibe {result.Spell!.CalculateDamage(pendingEnemyTurn.Actor.Stats)} de {result.Spell.Name}."
         : $"{pendingEnemyTurn.Actor.Name} finaliza su turno sin hechizo válido.";
@@ -299,6 +299,7 @@ static string DescribeCastResult(SpellCastResult result, Fighter caster, Spell s
     SpellCastResult.SpellOnCooldown => "El hechizo todavía está en cooldown.",
     SpellCastResult.CasterIsDead => "Un combatiente derrotado no puede lanzar hechizos.",
     SpellCastResult.TargetIsDead => "El objetivo ya ha sido derrotado.",
+    SpellCastResult.InvalidTarget => "Este hechizo solo puede usarse sobre un aliado.",
     _ => "No se pudo lanzar el hechizo."
 };
 

@@ -8,5 +8,6 @@ public enum SpellCastResult
     LineOfSightBlocked,
     SpellOnCooldown,
     CasterIsDead,
-    TargetIsDead
+    TargetIsDead,
+    InvalidTarget
 }
