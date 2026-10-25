@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using DofusSharp.Domain;
 
 namespace DofusSharp.GameState.Maps;
@@ -8,7 +9,8 @@ public sealed class JsonMapLoader
 {
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() }
     };
 
     /// <summary>Carga un mapa desde disco. Los errores de lectura mantienen su excepción original.</summary>
@@ -61,7 +63,8 @@ public sealed class JsonMapLoader
 
             var id = string.IsNullOrWhiteSpace(spawn.Id) ? Guid.NewGuid() : ParseId(spawn.Id);
             fighters.Add(new Fighter(id, spawn.Name, spawn.X, spawn.Y, spawn.ActionPoints,
-                spawn.MovementPoints, spawn.HP, spawn.Initiative, spawn.TeamId));
+                spawn.MovementPoints, spawn.HP, spawn.Initiative, spawn.TeamId, spawn.PlayerClass,
+                spawn.Stats?.ToDomain() ?? throw new InvalidDataException($"Los atributos de {spawn.Name} no pueden ser null.")));
         }
 
         if (fighters.Select(fighter => fighter.Id).Distinct().Count() != fighters.Count)

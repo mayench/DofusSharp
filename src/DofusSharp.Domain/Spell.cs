@@ -10,8 +10,10 @@ public sealed class Spell
     public int MaximumRange { get; }
     public int Damage { get; }
     public int CooldownTurns { get; }
+    public SpellScalingAttribute ScalingAttribute { get; }
 
-    public Spell(string id, string name, int actionPointCost, int minimumRange, int maximumRange, int damage, int cooldownTurns)
+    public Spell(string id, string name, int actionPointCost, int minimumRange, int maximumRange, int damage,
+        int cooldownTurns, SpellScalingAttribute scalingAttribute = SpellScalingAttribute.Strength)
     {
         if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("El identificador es obligatorio.", nameof(id));
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("El nombre es obligatorio.", nameof(name));
@@ -28,5 +30,14 @@ public sealed class Spell
         MaximumRange = maximumRange;
         Damage = damage;
         CooldownTurns = cooldownTurns;
+        ScalingAttribute = scalingAttribute;
+    }
+
+    /// <summary>Aplica +1% de daño base por cada punto del atributo asociado (redondeo hacia abajo).</summary>
+    public int CalculateDamage(Stats casterStats)
+    {
+        ArgumentNullException.ThrowIfNull(casterStats);
+        var bonus = (long)Damage * casterStats.GetValue(ScalingAttribute) / 100;
+        return (int)Math.Min(int.MaxValue, Damage + bonus);
     }
 }
