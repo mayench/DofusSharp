@@ -41,7 +41,8 @@ internal sealed class IsometricGrid
     }
 
     public void Draw(GameGrid grid, int highlightedX, int highlightedY,
-        IReadOnlySet<(int X, int Y)>? movementPath = null)
+        IReadOnlySet<(int X, int Y)>? movementPath = null,
+        IReadOnlySet<(int X, int Y)>? spellTargets = null)
     {
         // Dibujar de atrás hacia delante por suma de coordenadas evita que las filas se solapen mal.
         for (var diagonal = 0; diagonal < grid.Width + grid.Height - 1; diagonal++)
@@ -56,6 +57,8 @@ internal sealed class IsometricGrid
                 var fill = GetCellColor(cell);
                 if (movementPath?.Contains((x, y)) == true)
                     fill = new Color(54, 145, 164, 255);
+                if (spellTargets?.Contains((x, y)) == true)
+                    fill = new Color(201, 102, 227, 255);
                 if (x == highlightedX && y == highlightedY)
                     fill = new Color(236, 190, 73, 255);
 
@@ -66,11 +69,17 @@ internal sealed class IsometricGrid
 
     public void DrawFighter(Vector2 center, Fighter fighter, bool isActive)
     {
-        var color = isActive ? new Color(236, 190, 73, 255) : new Color(106, 174, 219, 255);
+        var color = !fighter.IsAlive
+            ? new Color(96, 96, 96, 255)
+            : isActive ? new Color(236, 190, 73, 255) : new Color(106, 174, 219, 255);
         Raylib.DrawCircleV(center, 11f, color);
         Raylib.DrawCircleLines((int)center.X, (int)center.Y, 12, new Color(22, 27, 32, 255));
         Raylib.DrawText(fighter.Name, (int)center.X - 20, (int)center.Y - 31, 12,
             new Color(244, 240, 222, 255));
+        Raylib.DrawRectangle((int)center.X - 18, (int)center.Y + 14, 36, 4, new Color(103, 39, 42, 255));
+        var healthRatio = fighter.MaxHP == 0 ? 0f : (float)fighter.HP / fighter.MaxHP;
+        Raylib.DrawRectangle((int)center.X - 18, (int)center.Y + 14, (int)(36 * healthRatio), 4,
+            new Color(85, 190, 100, 255));
     }
 
     private void DrawDiamond(Vector2 center, Color fill, Color outline)

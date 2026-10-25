@@ -22,20 +22,11 @@ public sealed class SpellCastingService
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(spell);
 
-        if (!caster.IsAlive) return SpellCastResult.CasterIsDead;
         if (!target.IsAlive) return SpellCastResult.TargetIsDead;
 
-        var distance = GameGrid.ManhattanDistance(caster.X, caster.Y, target.X, target.Y);
-        if (distance < spell.MinimumRange || distance > spell.MaximumRange)
-            return SpellCastResult.TargetOutOfRange;
-        if (!_lineOfSight.HasLineOfSight(_grid, caster.X, caster.Y, target.X, target.Y))
-            return SpellCastResult.LineOfSightBlocked;
-
         var cooldownKey = (caster.Id, spell.Id);
-        if (_remainingCooldowns.TryGetValue(cooldownKey, out var remaining) && remaining > 0)
-            return SpellCastResult.SpellOnCooldown;
-        if (caster.ActionPoints < spell.ActionPointCost)
-            return SpellCastResult.InsufficientActionPoints;
+        var validation = CanCastAt(caster, target.X, target.Y, spell);
+        if (validation != SpellCastResult.Success) return validation;
 
         // Primero se validan todas las condiciones; los cambios de estado solo ocurren al lanzar correctamente.
         if (!caster.TrySpendActionPoints(spell.ActionPointCost))
@@ -45,6 +36,35 @@ public sealed class SpellCastingService
             _remainingCooldowns[cooldownKey] = spell.CooldownTurns;
 
         return SpellCastResult.Success;
+    }
+
+    /// <summary>Valida alcance, LoS, PA y cooldown para una celda sin modificar el estado del combate.</summary>
+    public SpellCastResult CanCastAt(Fighter caster, int targetX, int targetY, Spell spell)
+    {
+        ArgumentNullException.ThrowIfNull(caster);
+        ArgumentNullException.ThrowIfNull(spell);
+
+        if (!caster.IsAlive) return SpellCastResult.CasterIsDead;
+
+        var distance = GameGrid.ManhattanDistance(caster.X, caster.Y, targetX, targetY);
+        if (distance < spell.MinimumRange || distance > spell.MaximumRange)
+            return SpellCastResult.TargetOutOfRange;
+        if (!_lineOfSight.HasLineOfSight(_grid, caster.X, caster.Y, targetX, targetY))
+            return SpellCastResult.LineOfSightBlocked;
+
+        if (GetRemainingCooldownTurns(caster, spell) > 0)
+            return SpellCastResult.SpellOnCooldown;
+        if (caster.ActionPoints < spell.ActionPointCost)
+            return SpellCastResult.InsufficientActionPoints;
+
+        return SpellCastResult.Success;
+    }
+
+    public int GetRemainingCooldownTurns(Fighter caster, Spell spell)
+    {
+        ArgumentNullException.ThrowIfNull(caster);
+        ArgumentNullException.ThrowIfNull(spell);
+        return _remainingCooldowns.GetValueOrDefault((caster.Id, spell.Id));
     }
 
     /// <summary>Llamar desde el coordinador de la partida al comenzar el turno de una entidad.</summary>

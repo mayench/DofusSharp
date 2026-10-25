@@ -13,6 +13,7 @@ public sealed class Fighter
     public int MaxActionPoints { get; }
     public int MaxMovementPoints { get; }
     public int HP { get; private set; }
+    public int MaxHP { get; }
     public bool IsAlive => HP > 0;
 
     public Fighter(Guid id, string name, int x, int y, int actionPoints, int movementPoints, int hp, int initiative = 0)
@@ -29,6 +30,7 @@ public sealed class Fighter
         MaxActionPoints = actionPoints;
         MaxMovementPoints = movementPoints;
         HP = hp;
+        MaxHP = hp;
     }
 
     /// <summary>Aplica un movimiento ya validado por el motor de cálculo.</summary>
