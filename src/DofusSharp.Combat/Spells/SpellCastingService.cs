@@ -1,11 +1,20 @@
 using DofusSharp.Domain;
+using DofusSharp.Combat.LineOfSight;
 
 namespace DofusSharp.Combat.Spells;
 
 /// <summary>Valida y resuelve lanzamientos básicos; el enfriamiento se cuenta en turnos del lanzador.</summary>
 public sealed class SpellCastingService
 {
+    private readonly GameGrid _grid;
+    private readonly ILineOfSightService _lineOfSight;
     private readonly Dictionary<(Guid CasterId, string SpellId), int> _remainingCooldowns = new();
+
+    public SpellCastingService(GameGrid grid, ILineOfSightService? lineOfSight = null)
+    {
+        _grid = grid ?? throw new ArgumentNullException(nameof(grid));
+        _lineOfSight = lineOfSight ?? new BresenhamLineOfSightService();
+    }
 
     public SpellCastResult TryCast(Fighter caster, Fighter target, Spell spell)
     {
@@ -19,6 +28,8 @@ public sealed class SpellCastingService
         var distance = GameGrid.ManhattanDistance(caster.X, caster.Y, target.X, target.Y);
         if (distance < spell.MinimumRange || distance > spell.MaximumRange)
             return SpellCastResult.TargetOutOfRange;
+        if (!_lineOfSight.HasLineOfSight(_grid, caster.X, caster.Y, target.X, target.Y))
+            return SpellCastResult.LineOfSightBlocked;
 
         var cooldownKey = (caster.Id, spell.Id);
         if (_remainingCooldowns.TryGetValue(cooldownKey, out var remaining) && remaining > 0)
