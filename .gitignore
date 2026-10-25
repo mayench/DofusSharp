@@ -1,0 +1,6 @@
+# Artefactos generados por .NET
+**/bin/
+**/obj/
+
+# Archivos locales del entorno Codex
+.codex/
