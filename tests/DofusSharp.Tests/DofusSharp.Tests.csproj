@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\DofusSharp.Domain\DofusSharp.Domain.csproj" />
     <ProjectReference Include="..\..\src\DofusSharp.Combat\DofusSharp.Combat.csproj" />
+    <ProjectReference Include="..\..\src\DofusSharp.GameState\DofusSharp.GameState.csproj" />
   </ItemGroup>
 
 </Project>
