@@ -1,5 +1,6 @@
 using DofusSharp.Domain;
 using DofusSharp.Combat.LineOfSight;
+using DofusSharp.Combat.State;
 
 namespace DofusSharp.Combat.Spells;
 
@@ -8,12 +9,17 @@ public sealed class SpellCastingService
 {
     private readonly GameGrid _grid;
     private readonly ILineOfSightService _lineOfSight;
+    private readonly BattleStateService _battleState;
     private readonly Dictionary<(Guid CasterId, string SpellId), int> _remainingCooldowns = new();
 
-    public SpellCastingService(GameGrid grid, ILineOfSightService? lineOfSight = null)
+    public SpellCastingService(GameGrid grid, ILineOfSightService? lineOfSight = null,
+        BattleStateService? battleState = null)
     {
         _grid = grid ?? throw new ArgumentNullException(nameof(grid));
         _lineOfSight = lineOfSight ?? new BresenhamLineOfSightService();
+        _battleState = battleState ?? new BattleStateService(grid);
+        if (!ReferenceEquals(_battleState.Grid, _grid))
+            throw new ArgumentException("El servicio de batalla debe usar el mismo tablero que el lanzador de hechizos.", nameof(battleState));
     }
 
     public SpellCastResult TryCast(Fighter caster, Fighter target, Spell spell)
@@ -31,7 +37,7 @@ public sealed class SpellCastingService
         // Primero se validan todas las condiciones; los cambios de estado solo ocurren al lanzar correctamente.
         if (!caster.TrySpendActionPoints(spell.ActionPointCost))
             return SpellCastResult.InsufficientActionPoints;
-        target.TakeDamage(spell.Damage);
+        _battleState.ApplyDamage(target, spell.Damage);
         if (spell.CooldownTurns > 0)
             _remainingCooldowns[cooldownKey] = spell.CooldownTurns;
 

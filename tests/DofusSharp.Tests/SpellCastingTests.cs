@@ -99,6 +99,24 @@ public sealed class SpellCastingTests
     }
 
     [Fact]
+    public void TryCast_LethalDamageMarksTargetDeadAndReleasesItsCell()
+    {
+        var grid = new GameGrid(3, 3);
+        grid.GetCell(1, 0).IsWalkable = false;
+        grid.GetCell(1, 0).LineOfSight = false;
+        var caster = CreateFighter("Cra", 0, 0, actionPoints: 6);
+        var target = CreateFighter("Iop", 1, 0, hp: 10);
+        var lethalSpell = CreateSpell(cost: 2, minRange: 1, maxRange: 2, damage: 10);
+
+        var result = new SpellCastingService(grid).TryCast(caster, target, lethalSpell);
+
+        Assert.Equal(SpellCastResult.Success, result);
+        Assert.False(target.IsAlive);
+        Assert.True(grid.GetCell(1, 0).IsWalkable);
+        Assert.True(grid.GetCell(1, 0).LineOfSight);
+    }
+
+    [Fact]
     public void TryCast_SucceedsWhenLineOfSightIsClear()
     {
         var grid = new GameGrid(5, 3);

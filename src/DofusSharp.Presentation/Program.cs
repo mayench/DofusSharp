@@ -2,6 +2,7 @@ using System.Numerics;
 using DofusSharp.Combat.LineOfSight;
 using DofusSharp.Combat.Pathfinding;
 using DofusSharp.Combat.Spells;
+using DofusSharp.Combat.State;
 using DofusSharp.Domain;
 using DofusSharp.GameState.Turns;
 using DofusSharp.Presentation;
@@ -11,6 +12,7 @@ const int screenWidth = 1280;
 const int screenHeight = 800;
 const float tileWidth = 48f;
 const float tileHeight = 24f;
+const string playerTeamId = "blue";
 
 var grid = new GameGrid(14, 20);
 // Terreno de ejemplo para mostrar bloqueos de movimiento y de visión.
@@ -20,12 +22,13 @@ grid.GetCell(9, 10).LineOfSight = false;
 
 var fighters = new List<Fighter>
 {
-    new(Guid.NewGuid(), "Cra", 2, 4, actionPoints: 6, movementPoints: 5, hp: 100, initiative: 20),
-    new(Guid.NewGuid(), "Iop", 7, 4, actionPoints: 6, movementPoints: 4, hp: 120, initiative: 10)
+    new(Guid.NewGuid(), "Cra", 2, 4, actionPoints: 6, movementPoints: 5, hp: 100, initiative: 20, teamId: playerTeamId),
+    new(Guid.NewGuid(), "Iop", 7, 4, actionPoints: 6, movementPoints: 4, hp: 120, initiative: 10, teamId: "red")
 };
 var turnManager = new TurnManager(fighters);
 var pathfinder = new AStarPathfinder();
-var spellCasting = new SpellCastingService(grid, new BresenhamLineOfSightService());
+var battleState = new BattleStateService(grid);
+var spellCasting = new SpellCastingService(grid, new BresenhamLineOfSightService(), battleState);
 turnManager.TurnStarted += spellCasting.NotifyTurnStarted;
 var spells = new[]
 {
@@ -38,18 +41,23 @@ Spell? selectedSpell = null;
 var feedback = "";
 var hoveredX = -1;
 var hoveredY = -1;
+var battleResult = battleState.CheckBattleState(fighters);
 
 Raylib.InitWindow(screenWidth, screenHeight, "DofusSharp - Movimiento táctico");
 Raylib.SetTargetFPS(60);
 
 while (!Raylib.WindowShouldClose())
 {
+    battleResult = battleState.CheckBattleState(fighters);
+    if (battleResult.Status == BattleStatus.InProgress && !turnManager.CurrentFighter.IsAlive)
+        turnManager.PassTurn();
+
     PathResult? previewPath = null;
     var spellTargetCells = new HashSet<(int X, int Y)>();
     hoveredX = -1;
     hoveredY = -1;
 
-    if (movement is null)
+    if (movement is null && !battleResult.IsFinished)
     {
         var activeFighter = turnManager.CurrentFighter;
         var pointer = Raylib.GetMousePosition();
@@ -128,7 +136,11 @@ while (!Raylib.WindowShouldClose())
         if (movement.IsComplete) movement = null;
     }
 
-    var currentFighter = turnManager.CurrentFighter;
+    battleResult = battleState.CheckBattleState(fighters);
+    var turnFighter = turnManager.CurrentFighter;
+    var currentFighter = turnFighter.IsAlive
+        ? turnFighter
+        : fighters.FirstOrDefault(fighter => fighter.IsAlive) ?? turnFighter;
     IReadOnlySet<(int X, int Y)> pathCells = movement?.HighlightedCells ??
         (previewPath is null
             ? new HashSet<(int X, int Y)>()
@@ -143,6 +155,7 @@ while (!Raylib.WindowShouldClose())
 
     foreach (var fighter in fighters.OrderBy(entity => entity.X + entity.Y))
     {
+        if (!fighter.IsAlive) continue;
         var position = movement is not null && fighter == currentFighter
             ? movement.GetVisualPosition(renderer)
             : renderer.GridToScreen(fighter.X, fighter.Y);
@@ -159,7 +172,11 @@ while (!Raylib.WindowShouldClose())
     Raylib.DrawText(feedback, 24, screenHeight - 62, 16, new Color(205, 215, 211, 255));
     Raylib.DrawText("Clic: mover/lanzar   1/2: hechizo   ESPACIO: finalizar turno", 24, screenHeight - 88, 15,
         new Color(183, 191, 184, 255));
+    if (battleResult.IsFinished)
+        DrawBattleOverlay(battleResult, playerTeamId);
     Raylib.EndDrawing();
+
+    if (battleResult.IsFinished && Raylib.IsKeyPressed(KeyboardKey.Escape)) break;
 }
 
 Raylib.CloseWindow();
@@ -167,7 +184,7 @@ Raylib.CloseWindow();
 PathResult? FindPathFor(Fighter fighter, int targetX, int targetY)
 {
     var blockedCells = fighters
-        .Where(other => other != fighter)
+        .Where(other => other != fighter && other.IsAlive)
         .Select(other => (other.X, other.Y))
         .ToHashSet();
     return pathfinder.FindPath(grid, fighter.X, fighter.Y, targetX, targetY, blockedCells);
@@ -243,4 +260,23 @@ static void DrawHud(Fighter fighter, int roundNumber, IReadOnlyList<Spell> spell
     }
     var modeLabel = selectedSpell is null ? "Modo: movimiento" : $"Modo: {selectedSpell.Name}";
     Raylib.DrawText(modeLabel, panelX + 18, panelY + 414, 14, new Color(236, 190, 73, 255));
+}
+
+static void DrawBattleOverlay(BattleResult result, string playerTeamId)
+{
+    Raylib.DrawRectangle(0, 0, screenWidth, screenHeight, new Color(8, 11, 14, 210));
+    const int panelX = 390;
+    const int panelY = 285;
+    const int panelWidth = 500;
+    const int panelHeight = 190;
+    Raylib.DrawRectangle(panelX, panelY, panelWidth, panelHeight, new Color(34, 42, 46, 255));
+    Raylib.DrawRectangleLines(panelX, panelY, panelWidth, panelHeight, new Color(236, 190, 73, 255));
+
+    var message = result.Status == BattleStatus.Draw
+        ? "¡Empate!"
+        : result.WinningTeamId == playerTeamId ? "¡Victoria!" : "¡Derrota!";
+    var messageColor = message == "¡Victoria!" ? new Color(112, 214, 130, 255) : new Color(236, 190, 73, 255);
+    Raylib.DrawText(message, panelX + 125, panelY + 45, 48, messageColor);
+    Raylib.DrawText("Pulsa ESC para cerrar el combate", panelX + 90, panelY + 120, 20,
+        new Color(234, 226, 201, 255));
 }

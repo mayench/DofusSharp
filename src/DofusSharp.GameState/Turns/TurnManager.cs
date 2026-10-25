@@ -25,23 +25,33 @@ public sealed class TurnManager
             throw new ArgumentException("Cada combatiente debe tener un identificador único.", nameof(fighters));
 
         // OrderBy es estable: en caso de empate se conserva el orden de entrada.
-        _fighters = input.OrderByDescending(fighter => fighter.Initiative).ToArray();
+        var ordered = input.OrderByDescending(fighter => fighter.Initiative).ToArray();
+        _currentIndex = Array.FindIndex(ordered, fighter => fighter.IsAlive);
+        if (_currentIndex < 0) throw new ArgumentException("Debe haber al menos un combatiente vivo.", nameof(fighters));
+        _fighters = ordered;
     }
 
-    /// <summary>Pasa el turno al siguiente combatiente, refrescando sus PA y PM.</summary>
+    /// <summary>Pasa al siguiente combatiente vivo, saltando los derrotados y refrescando sus PA/PM.</summary>
     public Fighter PassTurn()
     {
-        _currentIndex++;
-        if (_currentIndex == _fighters.Count)
+        for (var attempts = 0; attempts < _fighters.Count; attempts++)
         {
-            _currentIndex = 0;
-            RoundNumber++;
+            _currentIndex++;
+            if (_currentIndex == _fighters.Count)
+            {
+                _currentIndex = 0;
+                RoundNumber++;
+            }
+
+            var nextFighter = _fighters[_currentIndex];
+            if (!nextFighter.IsAlive) continue;
+
+            TurnNumber++;
+            nextFighter.RefreshTurnResources();
+            TurnStarted?.Invoke(nextFighter);
+            return nextFighter;
         }
 
-        TurnNumber++;
-        var nextFighter = CurrentFighter;
-        nextFighter.RefreshTurnResources();
-        TurnStarted?.Invoke(nextFighter);
-        return nextFighter;
+        throw new InvalidOperationException("No quedan combatientes vivos para iniciar otro turno.");
     }
 }

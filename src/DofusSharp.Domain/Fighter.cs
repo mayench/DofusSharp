@@ -5,6 +5,7 @@ public sealed class Fighter
 {
     public Guid Id { get; }
     public string Name { get; }
+    public string TeamId { get; }
     public int Initiative { get; }
     public int X { get; private set; }
     public int Y { get; private set; }
@@ -16,12 +17,15 @@ public sealed class Fighter
     public int MaxHP { get; }
     public bool IsAlive => HP > 0;
 
-    public Fighter(Guid id, string name, int x, int y, int actionPoints, int movementPoints, int hp, int initiative = 0)
+    public Fighter(Guid id, string name, int x, int y, int actionPoints, int movementPoints, int hp,
+        int initiative = 0, string teamId = "default")
     {
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("El nombre es obligatorio.", nameof(name));
+        if (string.IsNullOrWhiteSpace(teamId)) throw new ArgumentException("El equipo es obligatorio.", nameof(teamId));
         if (actionPoints < 0 || movementPoints < 0 || hp < 0) throw new ArgumentOutOfRangeException(nameof(hp), "Los recursos no pueden ser negativos.");
         Id = id;
         Name = name;
+        TeamId = teamId;
         Initiative = initiative;
         X = x;
         Y = y;

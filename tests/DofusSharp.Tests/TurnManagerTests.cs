@@ -39,6 +39,21 @@ public sealed class TurnManagerTests
     }
 
     [Fact]
+    public void PassTurn_SkipsDeadFightersInInitiativeQueue()
+    {
+        var active = CreateFighter("Cra", initiative: 30);
+        var defeated = CreateFighter("Sram", initiative: 20);
+        var nextLiving = CreateFighter("Iop", initiative: 10);
+        var turns = new TurnManager([active, defeated, nextLiving]);
+        defeated.TakeDamage(100);
+
+        var next = turns.PassTurn();
+
+        Assert.Same(nextLiving, next);
+        Assert.True(next.IsAlive);
+    }
+
+    [Fact]
     public void Constructor_RejectsEmptyQueue()
     {
         Assert.Throws<ArgumentException>(() => new TurnManager([]));
