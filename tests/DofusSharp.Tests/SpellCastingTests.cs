@@ -22,6 +22,20 @@ public sealed class SpellCastingTests
     }
 
     [Fact]
+    public void CanCastAt_ValidatesTargetWithoutConsumingActionPoints()
+    {
+        var grid = new GameGrid(5, 3);
+        var caster = CreateFighter("Cra", 0, 1, actionPoints: 6);
+        var spell = CreateSpell(cost: 3, minRange: 1, maxRange: 4);
+        var service = new SpellCastingService(grid);
+
+        var result = service.CanCastAt(caster, 3, 1, spell);
+
+        Assert.Equal(SpellCastResult.Success, result);
+        Assert.Equal(6, caster.ActionPoints);
+    }
+
+    [Fact]
     public void TryCast_RejectsTargetOutsideRangeWithoutSpendingResources()
     {
         var caster = CreateFighter("Cra", 0, 0, actionPoints: 6);
@@ -59,11 +73,14 @@ public sealed class SpellCastingTests
         turns.TurnStarted += service.NotifyTurnStarted;
 
         Assert.Equal(SpellCastResult.Success, service.TryCast(caster, opponent, spell));
+        Assert.Equal(1, service.GetRemainingCooldownTurns(caster, spell));
         Assert.Equal(SpellCastResult.SpellOnCooldown, service.TryCast(caster, opponent, spell));
 
         turns.PassTurn(); // El turno del rival no reduce el enfriamiento de Cra.
+        Assert.Equal(1, service.GetRemainingCooldownTurns(caster, spell));
         Assert.Equal(SpellCastResult.SpellOnCooldown, service.TryCast(caster, opponent, spell));
         turns.PassTurn(); // Al volver el turno de Cra, el enfriamiento se reduce.
+        Assert.Equal(0, service.GetRemainingCooldownTurns(caster, spell));
         Assert.Equal(SpellCastResult.Success, service.TryCast(caster, opponent, spell));
     }
 
