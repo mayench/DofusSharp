@@ -1,4 +1,5 @@
 using System.Numerics;
+using DofusSharp.Combat.AI;
 using DofusSharp.Combat.LineOfSight;
 using DofusSharp.Combat.Pathfinding;
 using DofusSharp.Combat.Spells;
@@ -30,6 +31,7 @@ var pathfinder = new AStarPathfinder();
 var battleState = new BattleStateService(grid);
 var spellCasting = new SpellCastingService(grid, new BresenhamLineOfSightService(), battleState);
 turnManager.TurnStarted += spellCasting.NotifyTurnStarted;
+var enemyAi = new EnemyAiService(grid, pathfinder, spellCasting, playerTeamId);
 var spells = new[]
 {
     new Spell("quick-arrow", "Flecha rápida", actionPointCost: 3, minimumRange: 1, maximumRange: 5, damage: 18, cooldownTurns: 1),
@@ -42,6 +44,9 @@ var feedback = "";
 var hoveredX = -1;
 var hoveredY = -1;
 var battleResult = battleState.CheckBattleState(fighters);
+EnemyTurnPlan? pendingEnemyTurn = null;
+var enemyTurnDelay = 0f;
+var enemyTurnPlanned = false;
 
 Raylib.InitWindow(screenWidth, screenHeight, "DofusSharp - Movimiento táctico");
 Raylib.SetTargetFPS(60);
@@ -60,9 +65,46 @@ while (!Raylib.WindowShouldClose())
     if (movement is null && !battleResult.IsFinished)
     {
         var activeFighter = turnManager.CurrentFighter;
-        var pointer = Raylib.GetMousePosition();
-        var mousePressed = Raylib.IsMouseButtonPressed(MouseButton.Left);
-        var clickHandledByHud = false;
+        if (activeFighter.TeamId != playerTeamId)
+        {
+            // Se deja una pausa antes de actuar para que el cambio de iniciativa sea perceptible.
+            if (!enemyTurnPlanned)
+            {
+                pendingEnemyTurn = enemyAi.PlanTurn(activeFighter, fighters);
+                enemyTurnPlanned = true;
+                enemyTurnDelay = 0.45f;
+                selectedSpell = null;
+                feedback = $"Turno de IA: {activeFighter.Name} está pensando...";
+            }
+            else
+            {
+                enemyTurnDelay -= Raylib.GetFrameTime();
+                if (enemyTurnDelay <= 0f)
+                {
+                    if (pendingEnemyTurn?.HasMovement == true)
+                    {
+                        movement = new FighterMovementAnimation(activeFighter, pendingEnemyTurn.MovementPath!);
+                    }
+                    else if (pendingEnemyTurn is null)
+                    {
+                        // No queda ningún objetivo del equipo controlado por el jugador.
+                        enemyTurnPlanned = false;
+                        turnManager.PassTurn();
+                    }
+                    else
+                    {
+                        ResolveEnemyTurn();
+                    }
+                }
+            }
+        }
+        else
+        {
+            pendingEnemyTurn = null;
+            enemyTurnPlanned = false;
+            var pointer = Raylib.GetMousePosition();
+            var mousePressed = Raylib.IsMouseButtonPressed(MouseButton.Left);
+            var clickHandledByHud = false;
 
         if (Raylib.IsKeyPressed(KeyboardKey.One)) selectedSpell = spells[0];
         if (Raylib.IsKeyPressed(KeyboardKey.Two)) selectedSpell = spells[1];
@@ -122,18 +164,24 @@ while (!Raylib.WindowShouldClose())
             }
         }
 
-        if (Raylib.IsKeyPressed(KeyboardKey.Space))
-        {
-            turnManager.PassTurn();
-            selectedSpell = null;
-            feedback = "Turno finalizado. PA y PM del siguiente combatiente restaurados.";
+            if (Raylib.IsKeyPressed(KeyboardKey.Space))
+            {
+                turnManager.PassTurn();
+                selectedSpell = null;
+                feedback = "Turno finalizado. PA y PM del siguiente combatiente restaurados.";
+            }
         }
     }
 
     if (movement is not null)
     {
         movement.Update(Raylib.GetFrameTime());
-        if (movement.IsComplete) movement = null;
+        if (movement.IsComplete)
+        {
+            movement = null;
+            if (pendingEnemyTurn is not null)
+                ResolveEnemyTurn();
+        }
     }
 
     battleResult = battleState.CheckBattleState(fighters);
@@ -188,6 +236,18 @@ PathResult? FindPathFor(Fighter fighter, int targetX, int targetY)
         .Select(other => (other.X, other.Y))
         .ToHashSet();
     return pathfinder.FindPath(grid, fighter.X, fighter.Y, targetX, targetY, blockedCells);
+}
+
+void ResolveEnemyTurn()
+{
+    if (pendingEnemyTurn is null) return;
+    var result = enemyAi.ResolveAttack(pendingEnemyTurn, spells);
+    feedback = result.CastSpell
+        ? $"IA: {result.Target.Name} recibe {result.Spell!.Damage} de {result.Spell.Name}."
+        : $"{pendingEnemyTurn.Actor.Name} finaliza su turno sin hechizo válido.";
+    pendingEnemyTurn = null;
+    enemyTurnPlanned = false;
+    turnManager.PassTurn();
 }
 
 static int GetClickedSpellCard(Vector2 pointer, bool mousePressed)
