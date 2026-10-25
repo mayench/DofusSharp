@@ -10,5 +10,6 @@
     <PackageReference Include="Raylib-cs" Version="8.1.0" />
     <ProjectReference Include="..\DofusSharp.Domain\DofusSharp.Domain.csproj" />
     <ProjectReference Include="..\DofusSharp.Combat\DofusSharp.Combat.csproj" />
+    <ProjectReference Include="..\DofusSharp.GameState\DofusSharp.GameState.csproj" />
   </ItemGroup>
 </Project>

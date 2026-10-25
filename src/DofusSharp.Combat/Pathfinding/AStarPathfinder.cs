@@ -7,7 +7,8 @@ public sealed class AStarPathfinder
 {
     private static readonly (int X, int Y)[] Directions = [(1, 0), (-1, 0), (0, 1), (0, -1)];
 
-    public PathResult? FindPath(GameGrid grid, int startX, int startY, int goalX, int goalY)
+    public PathResult? FindPath(GameGrid grid, int startX, int startY, int goalX, int goalY,
+        IReadOnlySet<(int X, int Y)>? blockedCells = null)
     {
         ArgumentNullException.ThrowIfNull(grid);
         if (!grid.Contains(startX, startY) || !grid.Contains(goalX, goalY)) return null;
@@ -34,7 +35,8 @@ public sealed class AStarPathfinder
             foreach (var direction in Directions)
             {
                 var next = (X: current.X + direction.X, Y: current.Y + direction.Y);
-                if (!grid.Contains(next.X, next.Y) || !grid.GetCell(next.X, next.Y).IsWalkable || closed.Contains(next)) continue;
+                if (!grid.Contains(next.X, next.Y) || !grid.GetCell(next.X, next.Y).IsWalkable ||
+                    blockedCells?.Contains(next) == true || closed.Contains(next)) continue;
                 var tentativeG = gScore[current] + 1;
                 if (gScore.TryGetValue(next, out var previousG) && tentativeG >= previousG) continue;
 
