@@ -37,7 +37,7 @@ public sealed class SpellCastingService
         // Primero se validan todas las condiciones; los cambios de estado solo ocurren al lanzar correctamente.
         if (!caster.TrySpendActionPoints(spell.ActionPointCost))
             return SpellCastResult.InsufficientActionPoints;
-        _battleState.ApplyDamage(target, spell.Damage);
+        _battleState.ApplyDamage(target, spell.CalculateDamage(caster.Stats));
         if (spell.CooldownTurns > 0)
             _remainingCooldowns[cooldownKey] = spell.CooldownTurns;
 

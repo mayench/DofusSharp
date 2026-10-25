@@ -6,6 +6,8 @@ public sealed class Fighter
     public Guid Id { get; }
     public string Name { get; }
     public string TeamId { get; }
+    public PlayerClass Class { get; }
+    public Stats Stats { get; }
     public int Initiative { get; }
     public int X { get; private set; }
     public int Y { get; private set; }
@@ -18,7 +20,7 @@ public sealed class Fighter
     public bool IsAlive => HP > 0;
 
     public Fighter(Guid id, string name, int x, int y, int actionPoints, int movementPoints, int hp,
-        int initiative = 0, string teamId = "default")
+        int initiative = 0, string teamId = "default", PlayerClass playerClass = PlayerClass.None, Stats? stats = null)
     {
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("El nombre es obligatorio.", nameof(name));
         if (string.IsNullOrWhiteSpace(teamId)) throw new ArgumentException("El equipo es obligatorio.", nameof(teamId));
@@ -26,6 +28,8 @@ public sealed class Fighter
         Id = id;
         Name = name;
         TeamId = teamId;
+        Class = playerClass;
+        Stats = stats ?? global::DofusSharp.Domain.Stats.Zero;
         Initiative = initiative;
         X = x;
         Y = y;
@@ -33,8 +37,8 @@ public sealed class Fighter
         MovementPoints = movementPoints;
         MaxActionPoints = actionPoints;
         MaxMovementPoints = movementPoints;
-        HP = hp;
-        MaxHP = hp;
+        MaxHP = checked(hp + Stats.Vitality);
+        HP = MaxHP;
     }
 
     /// <summary>Aplica un movimiento ya validado por el motor de cálculo.</summary>

@@ -16,7 +16,9 @@
       "actionPoints": 6,
       "movementPoints": 5,
       "hp": 100,
-      "initiative": 20
+      "initiative": 20,
+      "playerClass": "Ocra",
+      "stats": { "vitality": 10, "strength": 25, "intelligence": 5, "agility": 10, "luck": 5 }
     },
     {
       "id": "00000000-0000-0000-0000-000000000002",
@@ -27,7 +29,9 @@
       "actionPoints": 6,
       "movementPoints": 4,
       "hp": 120,
-      "initiative": 10
+      "initiative": 10,
+      "playerClass": "Yopuka",
+      "stats": { "vitality": 20, "strength": 30, "intelligence": 0, "agility": 5, "luck": 5 }
     }
   ]
 }

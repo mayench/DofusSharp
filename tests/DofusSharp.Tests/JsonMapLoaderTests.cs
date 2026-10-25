@@ -13,7 +13,7 @@ public sealed class JsonMapLoaderTests
             { "x": 2, "y": 1, "isWalkable": true, "lineOfSight": false }
           ],
           "spawns": [
-            { "id": "10000000-0000-0000-0000-000000000001", "name": "Cra", "teamId": "blue", "x": 0, "y": 0, "actionPoints": 6, "movementPoints": 5, "hp": 100, "initiative": 20 },
+            { "id": "10000000-0000-0000-0000-000000000001", "name": "Cra", "teamId": "blue", "x": 0, "y": 0, "actionPoints": 6, "movementPoints": 5, "hp": 100, "initiative": 20, "playerClass": "Ocra", "stats": { "vitality": 10, "strength": 25, "intelligence": 5, "agility": 10, "luck": 5 } },
             { "id": "10000000-0000-0000-0000-000000000002", "name": "Iop", "teamId": "red", "x": 3, "y": 2, "actionPoints": 6, "movementPoints": 4, "hp": 120, "initiative": 10 }
           ]
         }
@@ -32,6 +32,9 @@ public sealed class JsonMapLoaderTests
         Assert.Equal((0, 0), (map.Fighters[0].X, map.Fighters[0].Y));
         Assert.Equal(5, map.Fighters[0].MovementPoints);
         Assert.Equal(20, map.Fighters[0].Initiative);
+        Assert.Equal(DofusSharp.Domain.PlayerClass.Ocra, map.Fighters[0].Class);
+        Assert.Equal(110, map.Fighters[0].MaxHP);
+        Assert.Equal(25, map.Fighters[0].Stats.Strength);
         Assert.Equal("Iop", map.Fighters[1].Name);
     }
 
