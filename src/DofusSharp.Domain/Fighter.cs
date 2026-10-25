@@ -7,7 +7,12 @@ public sealed class Fighter
     public string Name { get; }
     public string TeamId { get; }
     public PlayerClass Class { get; }
-    public Stats Stats { get; }
+    public Stats Stats { get; private set; }
+    public int Level { get; private set; } = 1;
+    /// <summary>Experiencia acumulada dentro del nivel actual.</summary>
+    public int Experience { get; private set; }
+    public int ExperienceToNextLevel => checked(Level * 100);
+    public int AvailableCharacteristicPoints { get; private set; }
     public int Initiative { get; }
     public int X { get; private set; }
     public int Y { get; private set; }
@@ -16,7 +21,7 @@ public sealed class Fighter
     public int MaxActionPoints { get; }
     public int MaxMovementPoints { get; }
     public int HP { get; private set; }
-    public int MaxHP { get; }
+    public int MaxHP { get; private set; }
     public bool IsAlive => HP > 0;
 
     public Fighter(Guid id, string name, int x, int y, int actionPoints, int movementPoints, int hp,
@@ -71,5 +76,39 @@ public sealed class Fighter
     {
         ActionPoints = MaxActionPoints;
         MovementPoints = MaxMovementPoints;
+    }
+
+    /// <summary>Otorga experiencia y procesa todas las subidas de nivel alcanzadas.</summary>
+    public int GainExperience(int amount)
+    {
+        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount), "La experiencia no puede ser negativa.");
+        var pendingExperience = checked(Experience + amount);
+        var levelsGained = 0;
+        while (pendingExperience >= checked(Level * 100))
+        {
+            pendingExperience -= checked(Level * 100);
+            Level = checked(Level + 1);
+            AvailableCharacteristicPoints = checked(AvailableCharacteristicPoints + 5);
+            levelsGained++;
+        }
+
+        Experience = pendingExperience;
+        return levelsGained;
+    }
+
+    /// <summary>Invierte un punto disponible en una característica; Vitalidad también aumenta el HP máximo.</summary>
+    public bool TryAllocateCharacteristicPoint(CharacteristicAttribute attribute)
+    {
+        if (AvailableCharacteristicPoints <= 0 || !Enum.IsDefined(attribute)) return false;
+
+        Stats = Stats.AddPoint(attribute);
+        AvailableCharacteristicPoints--;
+        if (attribute == CharacteristicAttribute.Vitality)
+        {
+            MaxHP = checked(MaxHP + 1);
+            if (IsAlive) HP = Math.Min(MaxHP, checked(HP + 1));
+        }
+
+        return true;
     }
 }

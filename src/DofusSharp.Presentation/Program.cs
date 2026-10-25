@@ -2,6 +2,7 @@ using System.Numerics;
 using DofusSharp.Combat.AI;
 using DofusSharp.Combat.LineOfSight;
 using DofusSharp.Combat.Pathfinding;
+using DofusSharp.Combat.Progression;
 using DofusSharp.Combat.Spells;
 using DofusSharp.Combat.State;
 using DofusSharp.Domain;
@@ -26,13 +27,8 @@ var battleState = new BattleStateService(grid);
 var spellCasting = new SpellCastingService(grid, new BresenhamLineOfSightService(), battleState);
 turnManager.TurnStarted += spellCasting.NotifyTurnStarted;
 var enemyAi = new EnemyAiService(grid, pathfinder, spellCasting, playerTeamId);
-var spells = new[]
-{
-    new Spell("quick-arrow", "Flecha rápida", actionPointCost: 3, minimumRange: 1, maximumRange: 5,
-        damage: 18, cooldownTurns: 1, scalingAttribute: SpellScalingAttribute.Strength),
-    new Spell("power-arrow", "Flecha potente", actionPointCost: 4, minimumRange: 2, maximumRange: 7,
-        damage: 32, cooldownTurns: 2, scalingAttribute: SpellScalingAttribute.Intelligence)
-};
+IReadOnlyList<Spell> spells = ClassSpellKitProvider.GetKit(turnManager.CurrentFighter.Class);
+var experienceService = new BattleExperienceService();
 var renderer = new IsometricGrid(screenWidth / 2f, 150f, tileWidth, tileHeight);
 FighterMovementAnimation? movement = null;
 Spell? selectedSpell = null;
@@ -50,8 +46,21 @@ Raylib.SetTargetFPS(60);
 while (!Raylib.WindowShouldClose())
 {
     battleResult = battleState.CheckBattleState(fighters);
+    var rewardedFighters = experienceService.AwardVictoryExperience(battleResult, fighters, playerTeamId);
+    if (rewardedFighters > 0)
+        feedback = $"¡Victoria! {rewardedFighters} combatiente(s) reciben 100 XP.";
     if (battleResult.Status == BattleStatus.InProgress && !turnManager.CurrentFighter.IsAlive)
         turnManager.PassTurn();
+    spells = ClassSpellKitProvider.GetKit(turnManager.CurrentFighter.Class);
+
+    // La recompensa se entrega al finalizar el combate; los puntos se invierten desde el overlay.
+    var progressionFighter = fighters.FirstOrDefault(fighter => fighter.IsAlive && fighter.TeamId == playerTeamId);
+    if (battleResult.IsFinished && progressionFighter is not null && TryGetCharacteristicInput(out var attribute))
+    {
+        feedback = progressionFighter.TryAllocateCharacteristicPoint(attribute)
+            ? $"{attribute} aumentada. Puntos disponibles: {progressionFighter.AvailableCharacteristicPoints}."
+            : "No hay puntos de característica disponibles.";
+    }
 
     PathResult? previewPath = null;
     var spellTargetCells = new HashSet<(int X, int Y)>();
@@ -182,6 +191,7 @@ while (!Raylib.WindowShouldClose())
 
     battleResult = battleState.CheckBattleState(fighters);
     var turnFighter = turnManager.CurrentFighter;
+    spells = ClassSpellKitProvider.GetKit(turnFighter.Class);
     var currentFighter = turnFighter.IsAlive
         ? turnFighter
         : fighters.FirstOrDefault(fighter => fighter.IsAlive) ?? turnFighter;
@@ -246,13 +256,29 @@ void ResolveEnemyTurn()
     turnManager.PassTurn();
 }
 
+static bool TryGetCharacteristicInput(out CharacteristicAttribute attribute)
+{
+    if (Raylib.IsKeyPressed(KeyboardKey.Three)) attribute = CharacteristicAttribute.Vitality;
+    else if (Raylib.IsKeyPressed(KeyboardKey.Four)) attribute = CharacteristicAttribute.Strength;
+    else if (Raylib.IsKeyPressed(KeyboardKey.Five)) attribute = CharacteristicAttribute.Intelligence;
+    else if (Raylib.IsKeyPressed(KeyboardKey.Six)) attribute = CharacteristicAttribute.Agility;
+    else if (Raylib.IsKeyPressed(KeyboardKey.Seven)) attribute = CharacteristicAttribute.Luck;
+    else
+    {
+        attribute = default;
+        return false;
+    }
+
+    return true;
+}
+
 static int GetClickedSpellCard(Vector2 pointer, bool mousePressed)
 {
     if (!mousePressed) return -1;
     const int cardX = 984;
     const int cardWidth = 254;
     const int cardHeight = 54;
-    const int firstCardY = 420;
+    const int firstCardY = 510;
     const int cardGap = 8;
     for (var index = 0; index < 2; index++)
     {
@@ -282,7 +308,7 @@ static void DrawHud(Fighter fighter, int roundNumber, IReadOnlyList<Spell> spell
     const int panelX = 970;
     const int panelY = 150;
     const int panelWidth = 282;
-    const int panelHeight = 500;
+    const int panelHeight = 540;
     var background = new Color(34, 42, 46, 255);
     var foreground = new Color(234, 226, 201, 255);
 
@@ -291,23 +317,31 @@ static void DrawHud(Fighter fighter, int roundNumber, IReadOnlyList<Spell> spell
     Raylib.DrawText("PERSONAJE ACTIVO", panelX + 18, panelY + 18, 16, new Color(236, 190, 73, 255));
     Raylib.DrawText(fighter.Name, panelX + 18, panelY + 48, 28, foreground);
     Raylib.DrawText($"Clase: {fighter.Class}", panelX + 18, panelY + 82, 16, foreground);
-    Raylib.DrawText($"Vida: {fighter.HP}/{fighter.MaxHP}", panelX + 18, panelY + 106, 18, foreground);
-    Raylib.DrawText($"PA: {fighter.ActionPoints}/{fighter.MaxActionPoints}", panelX + 18, panelY + 132, 18, foreground);
-    Raylib.DrawText($"PM: {fighter.MovementPoints}/{fighter.MaxMovementPoints}", panelX + 18, panelY + 158, 18, foreground);
+    Raylib.DrawText($"Nivel {fighter.Level}", panelX + 18, panelY + 104, 16, foreground);
+    Raylib.DrawText($"XP {fighter.Experience}/{fighter.ExperienceToNextLevel}", panelX + 18, panelY + 126, 14, foreground);
+    const int experienceBarWidth = panelWidth - 36;
+    Raylib.DrawRectangle(panelX + 18, panelY + 148, experienceBarWidth, 8, new Color(45, 55, 58, 255));
+    var progressWidth = experienceBarWidth * fighter.Experience / (float)fighter.ExperienceToNextLevel;
+    Raylib.DrawRectangle(panelX + 18, panelY + 148, (int)progressWidth, 8, new Color(112, 214, 130, 255));
+    Raylib.DrawText($"Vida: {fighter.HP}/{fighter.MaxHP}", panelX + 18, panelY + 168, 18, foreground);
+    Raylib.DrawText($"PA: {fighter.ActionPoints}/{fighter.MaxActionPoints}", panelX + 18, panelY + 194, 18, foreground);
+    Raylib.DrawText($"PM: {fighter.MovementPoints}/{fighter.MaxMovementPoints}", panelX + 18, panelY + 220, 18, foreground);
     Raylib.DrawText($"VIT {fighter.Stats.Vitality}  FUE {fighter.Stats.Strength}  INT {fighter.Stats.Intelligence}",
-        panelX + 18, panelY + 190, 14, foreground);
+        panelX + 18, panelY + 250, 14, foreground);
     Raylib.DrawText($"AGI {fighter.Stats.Agility}  SUE {fighter.Stats.Luck}",
-        panelX + 18, panelY + 210, 14, foreground);
+        panelX + 18, panelY + 270, 14, foreground);
+    Raylib.DrawText($"Puntos: {fighter.AvailableCharacteristicPoints} | 3 VIT 4 FUE 5 INT 6 AGI 7 SUE",
+        panelX + 18, panelY + 292, 12, new Color(236, 190, 73, 255));
     Raylib.DrawText($"Posición: ({fighter.X}, {fighter.Y})   Ronda: {roundNumber}",
-        panelX + 18, panelY + 236, 14, foreground);
-    Raylib.DrawText("HECHIZOS  (teclas 1 y 2)", panelX + 18, panelY + 258, 16, foreground);
+        panelX + 18, panelY + 316, 14, foreground);
+    Raylib.DrawText("HECHIZOS DE CLASE  (teclas 1 y 2)", panelX + 18, panelY + 338, 15, foreground);
     for (var index = 0; index < spells.Count; index++)
     {
         var spell = spells[index];
         const int cardX = panelX + 14;
         const int cardWidth = panelWidth - 28;
         const int cardHeight = 54;
-        var cardY = panelY + 282 + index * (cardHeight + 8);
+        var cardY = panelY + 360 + index * (cardHeight + 8);
         var isSelected = selectedSpell?.Id == spell.Id;
         var cardColor = isSelected ? new Color(76, 94, 111, 255) : new Color(45, 55, 58, 255);
         Raylib.DrawRectangle(cardX, cardY, cardWidth, cardHeight, cardColor);
@@ -321,7 +355,7 @@ static void DrawHud(Fighter fighter, int roundNumber, IReadOnlyList<Spell> spell
             cardX + 8, cardY + 31, 12, new Color(190, 201, 195, 255));
     }
     var modeLabel = selectedSpell is null ? "Modo: movimiento" : $"Modo: {selectedSpell.Name}";
-    Raylib.DrawText(modeLabel, panelX + 18, panelY + 454, 14, new Color(236, 190, 73, 255));
+    Raylib.DrawText(modeLabel, panelX + 18, panelY + 490, 14, new Color(236, 190, 73, 255));
 }
 
 static void DrawBattleOverlay(BattleResult result, string playerTeamId)
