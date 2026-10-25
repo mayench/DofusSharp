@@ -5,12 +5,14 @@ using Raylib_cs;
 namespace DofusSharp.Presentation;
 
 /// <summary>Dibuja el tablero lógico como rombos y convierte el puntero a celdas de la cuadrícula.</summary>
-internal sealed class IsometricGrid
+internal sealed class IsometricGrid : IDisposable
 {
     private readonly float _originX;
     private readonly float _originY;
     private readonly float _tileWidth;
     private readonly float _tileHeight;
+    private readonly Texture2D _yopukaSprite;
+    private readonly Texture2D _ocraSprite;
 
     public IsometricGrid(float originX, float originY, float tileWidth, float tileHeight)
     {
@@ -18,6 +20,9 @@ internal sealed class IsometricGrid
         _originY = originY;
         _tileWidth = tileWidth;
         _tileHeight = tileHeight;
+        var assets = Path.Combine(AppContext.BaseDirectory, "Assets");
+        _yopukaSprite = LoadCutoutSprite(Path.Combine(assets, "yopuka.png"));
+        _ocraSprite = LoadCutoutSprite(Path.Combine(assets, "ocra.png"));
     }
 
     /// <summary>Proyecta índices lógicos a centros de rombos en pantalla.</summary>
@@ -42,6 +47,8 @@ internal sealed class IsometricGrid
 
     public void Draw(GameGrid grid, int highlightedX, int highlightedY,
         IReadOnlySet<(int X, int Y)>? movementPath = null,
+        IReadOnlySet<(int X, int Y)>? spellRange = null,
+        IReadOnlySet<(int X, int Y)>? blockedSpellRange = null,
         IReadOnlySet<(int X, int Y)>? spellTargets = null)
     {
         // Dibujar de atrás hacia delante por suma de coordenadas evita que las filas se solapen mal.
@@ -54,11 +61,16 @@ internal sealed class IsometricGrid
                 var y = diagonal - x;
                 var cell = grid.GetCell(x, y);
                 var center = GridToScreen(x, y);
-                var fill = GetCellColor(cell);
+                var fill = GetCellColor(cell, x, y);
                 if (movementPath?.Contains((x, y)) == true)
                     fill = new Color(54, 145, 164, 255);
+                // El alcance se muestra aunque la casilla esté vacía; el tono apagado indica LoS bloqueada.
+                if (spellRange?.Contains((x, y)) == true)
+                    fill = new Color(214, 174, 83, 235);
+                if (blockedSpellRange?.Contains((x, y)) == true)
+                    fill = new Color(134, 91, 72, 235);
                 if (spellTargets?.Contains((x, y)) == true)
-                    fill = new Color(201, 102, 227, 255);
+                    fill = new Color(103, 157, 89, 255);
                 if (x == highlightedX && y == highlightedY)
                     fill = new Color(236, 190, 73, 255);
 
@@ -69,17 +81,46 @@ internal sealed class IsometricGrid
 
     public void DrawFighter(Vector2 center, Fighter fighter, bool isActive)
     {
-        var color = !fighter.IsAlive
-            ? new Color(96, 96, 96, 255)
-            : isActive ? new Color(236, 190, 73, 255) : new Color(106, 174, 219, 255);
-        Raylib.DrawCircleV(center, 11f, color);
-        Raylib.DrawCircleLines((int)center.X, (int)center.Y, 12, new Color(22, 27, 32, 255));
-        Raylib.DrawText(fighter.Name, (int)center.X - 20, (int)center.Y - 31, 12,
-            new Color(244, 240, 222, 255));
-        Raylib.DrawRectangle((int)center.X - 18, (int)center.Y + 14, 36, 4, new Color(103, 39, 42, 255));
+        var sprite = fighter.Class == PlayerClass.Ocra ? _ocraSprite : _yopukaSprite;
+        var spriteScale = 0.24f;
+        var spriteWidth = sprite.Width * spriteScale;
+        var spriteHeight = sprite.Height * spriteScale;
+        Raylib.DrawEllipse((int)center.X, (int)center.Y + 7, 20, 8, new Color(62, 66, 39, 115));
+        if (isActive)
+        {
+            Raylib.DrawEllipseLines((int)center.X, (int)center.Y + 7, 23, 9, new Color(199, 148, 54, 255));
+            Raylib.DrawCircle((int)center.X, (int)(center.Y - spriteHeight - 8), 4,
+                new Color(199, 148, 54, 255));
+        }
+        Raylib.DrawTextureEx(sprite,
+            new Vector2(center.X - spriteWidth / 2f, center.Y - spriteHeight + 5), 0, spriteScale,
+            fighter.IsAlive ? Color.White : new Color(140, 135, 125, 180));
+        Raylib.DrawRectangle((int)center.X - 34, (int)(center.Y - spriteHeight - 32), 68, 18,
+            new Color(236, 223, 182, 235));
+        Raylib.DrawRectangleLines((int)center.X - 34, (int)(center.Y - spriteHeight - 32), 68, 18,
+            new Color(150, 113, 57, 255));
+        Raylib.DrawText(fighter.Name, (int)center.X - 29, (int)(center.Y - spriteHeight - 29), 11,
+            fighter.IsAlive ? new Color(83, 53, 34, 255) : new Color(124, 117, 101, 255));
+        Raylib.DrawRectangle((int)center.X - 19, (int)center.Y + 16, 38, 5, new Color(115, 72, 54, 255));
         var healthRatio = fighter.MaxHP == 0 ? 0f : (float)fighter.HP / fighter.MaxHP;
-        Raylib.DrawRectangle((int)center.X - 18, (int)center.Y + 14, (int)(36 * healthRatio), 4,
+        Raylib.DrawRectangle((int)center.X - 19, (int)center.Y + 17, (int)(38 * healthRatio), 5,
             new Color(85, 190, 100, 255));
+    }
+
+    public void Dispose()
+    {
+        Raylib.UnloadTexture(_yopukaSprite);
+        Raylib.UnloadTexture(_ocraSprite);
+    }
+
+    /// <summary>Elimina el fondo blanco de los retratos para integrarlos con transparencia al tablero.</summary>
+    private static Texture2D LoadCutoutSprite(string path)
+    {
+        var image = Raylib.LoadImage(path);
+        Raylib.ImageAlphaClear(ref image, Color.White, 0.08f);
+        var texture = Raylib.LoadTextureFromImage(image);
+        Raylib.UnloadImage(image);
+        return texture;
     }
 
     private void DrawDiamond(Vector2 center, Color fill, Color outline)
@@ -99,11 +140,13 @@ internal sealed class IsometricGrid
         Raylib.DrawLineV(left, top, outline);
     }
 
-    private static Color GetCellColor(GridCell cell)
+    private static Color GetCellColor(GridCell cell, int x, int y)
     {
-        if (!cell.IsWalkable && !cell.LineOfSight) return new Color(91, 45, 91, 255);
-        if (!cell.IsWalkable) return new Color(145, 62, 54, 255);
-        if (!cell.LineOfSight) return new Color(65, 83, 143, 255);
-        return new Color(66, 111, 81, 255);
+        if (!cell.IsWalkable && !cell.LineOfSight) return new Color(126, 88, 67, 255);
+        if (!cell.IsWalkable) return new Color(132, 117, 84, 255);
+        if (!cell.LineOfSight) return new Color(126, 139, 104, 255);
+        return (x + y) % 2 == 0
+            ? new Color(197, 174, 119, 255)
+            : new Color(210, 187, 131, 255);
     }
 }

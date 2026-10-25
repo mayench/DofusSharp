@@ -17,5 +17,6 @@
     <Content Include="..\DofusSharp.GameState\Maps\Examples\arena.json"
              Link="Maps\arena.json"
              CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\*.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -1,4 +1,3 @@
-using System.Numerics;
 using DofusSharp.Combat.AI;
 using DofusSharp.Combat.LineOfSight;
 using DofusSharp.Combat.Pathfinding;
@@ -13,14 +12,17 @@ using Raylib_cs;
 
 const int screenWidth = 1280;
 const int screenHeight = 800;
-const float tileWidth = 48f;
-const float tileHeight = 24f;
 const string playerTeamId = "blue";
 
 var mapPath = Path.Combine(AppContext.BaseDirectory, "Maps", "arena.json");
 var loadedMap = new JsonMapLoader().LoadFromFile(mapPath);
 var grid = loadedMap.Grid;
-var fighters = loadedMap.Fighters.ToList();
+Raylib.InitWindow(screenWidth, screenHeight, "DofusSharp - Aventuras del Mundo de los Doce");
+Raylib.SetTargetFPS(60);
+var chosenClass = ClassSelectionScreen.Choose();
+var opposingClass = chosenClass == PlayerClass.Ocra ? PlayerClass.Yopuka : PlayerClass.Ocra;
+var fighters = loadedMap.Fighters.Select(fighter => CopyForSelectedClass(fighter,
+    fighter.TeamId == playerTeamId ? chosenClass : opposingClass)).ToList();
 var turnManager = new TurnManager(fighters);
 var pathfinder = new AStarPathfinder();
 var battleState = new BattleStateService(grid);
@@ -29,7 +31,8 @@ turnManager.TurnStarted += spellCasting.NotifyTurnStarted;
 var enemyAi = new EnemyAiService(grid, pathfinder, spellCasting, playerTeamId);
 IReadOnlyList<Spell> spells = ClassSpellKitProvider.GetKit(turnManager.CurrentFighter.Class);
 var experienceService = new BattleExperienceService();
-var renderer = new IsometricGrid(screenWidth / 2f, 150f, tileWidth, tileHeight);
+var renderer = new IsometricGrid(500f, 112f, 50f, 26f);
+var hud = new CombatHud();
 FighterMovementAnimation? movement = null;
 Spell? selectedSpell = null;
 var feedback = "";
@@ -39,9 +42,9 @@ var battleResult = battleState.CheckBattleState(fighters);
 EnemyTurnPlan? pendingEnemyTurn = null;
 var enemyTurnDelay = 0f;
 var enemyTurnPlanned = false;
-
-Raylib.InitWindow(screenWidth, screenHeight, "DofusSharp - Movimiento táctico");
-Raylib.SetTargetFPS(60);
+const float turnDurationSeconds = 30f;
+var timedFighterId = turnManager.CurrentFighter.Id;
+var remainingTurnSeconds = turnDurationSeconds;
 
 while (!Raylib.WindowShouldClose())
 {
@@ -51,6 +54,21 @@ while (!Raylib.WindowShouldClose())
         feedback = $"¡Victoria! {rewardedFighters} combatiente(s) reciben 100 XP.";
     if (battleResult.Status == BattleStatus.InProgress && !turnManager.CurrentFighter.IsAlive)
         turnManager.PassTurn();
+    if (turnManager.CurrentFighter.Id != timedFighterId)
+    {
+        timedFighterId = turnManager.CurrentFighter.Id;
+        remainingTurnSeconds = turnDurationSeconds;
+    }
+    if (!battleResult.IsFinished && turnManager.CurrentFighter.TeamId == playerTeamId)
+    {
+        remainingTurnSeconds = Math.Max(0, remainingTurnSeconds - Raylib.GetFrameTime());
+        if (remainingTurnSeconds <= 0 && movement is null)
+        {
+            turnManager.PassTurn();
+            selectedSpell = null;
+            feedback = "Tiempo agotado. El turno se ha pasado automáticamente.";
+        }
+    }
     spells = ClassSpellKitProvider.GetKit(turnManager.CurrentFighter.Class);
 
     // La recompensa se entrega al finalizar el combate; los puntos se invierten desde el overlay.
@@ -64,6 +82,8 @@ while (!Raylib.WindowShouldClose())
 
     PathResult? previewPath = null;
     var spellTargetCells = new HashSet<(int X, int Y)>();
+    var spellRangeCells = new HashSet<(int X, int Y)>();
+    var blockedSpellRangeCells = new HashSet<(int X, int Y)>();
     hoveredX = -1;
     hoveredY = -1;
 
@@ -111,15 +131,44 @@ while (!Raylib.WindowShouldClose())
             var mousePressed = Raylib.IsMouseButtonPressed(MouseButton.Left);
             var clickHandledByHud = false;
 
-        if (Raylib.IsKeyPressed(KeyboardKey.One)) selectedSpell = spells[0];
-        if (Raylib.IsKeyPressed(KeyboardKey.Two)) selectedSpell = spells[1];
-        if (Raylib.IsKeyPressed(KeyboardKey.Escape)) selectedSpell = null;
+        var requestedSpellIndex = Raylib.IsKeyPressed(KeyboardKey.One) ? 0
+            : Raylib.IsKeyPressed(KeyboardKey.Two) ? 1 : -1;
+        if (Raylib.IsKeyPressed(KeyboardKey.Escape) || Raylib.IsKeyPressed(KeyboardKey.M) ||
+            Raylib.IsMouseButtonPressed(MouseButton.Right))
+        {
+            selectedSpell = null;
+            feedback = "Modo de movimiento activo.";
+        }
 
-        var clickedSpellIndex = GetClickedSpellCard(pointer, mousePressed);
+        var clickedSpellIndex = CombatHud.GetClickedSpellIndex(pointer, mousePressed, spells.Count);
         if (clickedSpellIndex >= 0)
         {
-            selectedSpell = spells[clickedSpellIndex];
+            requestedSpellIndex = clickedSpellIndex;
             clickHandledByHud = true;
+        }
+        if (requestedSpellIndex >= 0 && requestedSpellIndex < spells.Count)
+        {
+            var requestedSpell = spells[requestedSpellIndex];
+            if (CombatHud.IsSpellReady(activeFighter, requestedSpell, spellCasting))
+            {
+                if (selectedSpell?.Id == requestedSpell.Id)
+                {
+                    selectedSpell = null;
+                    feedback = "Hechizo deseleccionado. Modo de movimiento activo.";
+                }
+                else
+                {
+                    selectedSpell = requestedSpell;
+                    feedback = $"{requestedSpell.Name}: selecciona un objetivo válido.";
+                }
+            }
+            else
+            {
+                selectedSpell = null;
+                feedback = activeFighter.ActionPoints < requestedSpell.ActionPointCost
+                    ? $"Necesitas {requestedSpell.ActionPointCost} PA para usar {requestedSpell.Name}."
+                    : $"{requestedSpell.Name} todavía está en recarga.";
+            }
         }
 
         var hasHoveredCell = renderer.TryGetCellAt(grid, pointer, out var cellX, out var cellY);
@@ -128,6 +177,16 @@ while (!Raylib.WindowShouldClose())
             for (var x = 0; x < grid.Width; x++)
             for (var y = 0; y < grid.Height; y++)
             {
+                var distance = GameGrid.ManhattanDistance(activeFighter.X, activeFighter.Y, x, y);
+                if (distance < selectedSpell.MinimumRange || distance > selectedSpell.MaximumRange)
+                    continue;
+
+                // El jugador puede leer el alcance completo, incluidos huecos y casillas tras obstáculos.
+                if (spellCasting.HasLineOfSight(activeFighter.X, activeFighter.Y, x, y))
+                    spellRangeCells.Add((x, y));
+                else
+                    blockedSpellRangeCells.Add((x, y));
+
                 var hasLivingTarget = fighters.Any(fighter => fighter != activeFighter && fighter.IsAlive &&
                     fighter.X == x && fighter.Y == y);
                 if (hasLivingTarget &&
@@ -135,7 +194,8 @@ while (!Raylib.WindowShouldClose())
                     spellTargetCells.Add((x, y));
             }
 
-            if (hasHoveredCell && spellTargetCells.Contains((cellX, cellY)))
+            if (hasHoveredCell && (spellRangeCells.Contains((cellX, cellY)) ||
+                                   blockedSpellRangeCells.Contains((cellX, cellY))))
             {
                 hoveredX = cellX;
                 hoveredY = cellY;
@@ -145,12 +205,16 @@ while (!Raylib.WindowShouldClose())
                         fighter.X == cellX && fighter.Y == cellY);
                     if (target is null)
                     {
-                        feedback = "Casilla válida, pero no hay un combatiente enemigo como objetivo.";
+                        feedback = "Alcance del hechizo: selecciona una casilla ocupada por un objetivo válido.";
                     }
+                    else if (!spellTargetCells.Contains((cellX, cellY)))
+                        feedback = DescribeCastResult(spellCasting.CanCastAt(activeFighter, cellX, cellY, selectedSpell),
+                            activeFighter, selectedSpell, target);
                     else
                     {
                         var result = spellCasting.TryCast(activeFighter, target, selectedSpell, fighters);
                         feedback = DescribeCastResult(result, activeFighter, selectedSpell, target);
+                        if (result == SpellCastResult.Success) selectedSpell = null;
                     }
                 }
             }
@@ -191,6 +255,11 @@ while (!Raylib.WindowShouldClose())
 
     battleResult = battleState.CheckBattleState(fighters);
     var turnFighter = turnManager.CurrentFighter;
+    if (turnFighter.Id != timedFighterId)
+    {
+        timedFighterId = turnFighter.Id;
+        remainingTurnSeconds = turnDurationSeconds;
+    }
     spells = ClassSpellKitProvider.GetKit(turnFighter.Class);
     var currentFighter = turnFighter.IsAlive
         ? turnFighter
@@ -201,11 +270,8 @@ while (!Raylib.WindowShouldClose())
             : previewPath.Path.Skip(1).Select(cell => (cell.X, cell.Y)).ToHashSet());
 
     Raylib.BeginDrawing();
-    Raylib.ClearBackground(new Color(22, 27, 32, 255));
-    renderer.Draw(grid, hoveredX, hoveredY, pathCells, spellTargetCells);
-    Raylib.DrawText("DOFUSSHARP  /  COMBATE TACTICO", 24, 22, 22, new Color(234, 226, 201, 255));
-    Raylib.DrawText("Rojo: obstáculo   Azul: bloquea LoS   Violeta: objetivo válido del hechizo seleccionado", 24, 52, 15,
-        new Color(183, 191, 184, 255));
+    Raylib.ClearBackground(new Color(130, 142, 91, 255));
+    renderer.Draw(grid, hoveredX, hoveredY, pathCells, spellRangeCells, blockedSpellRangeCells, spellTargetCells);
 
     foreach (var fighter in fighters.OrderBy(entity => entity.X + entity.Y))
     {
@@ -216,16 +282,13 @@ while (!Raylib.WindowShouldClose())
         renderer.DrawFighter(position, fighter, fighter == currentFighter);
     }
 
-    DrawHud(currentFighter, turnManager.RoundNumber, spells, selectedSpell, spellCasting);
     var modeText = selectedSpell is null
-        ? hoveredX >= 0
-            ? $"Destino: ({hoveredX}, {hoveredY})   Coste: {previewPath!.MovementCost} PM"
+        ? hoveredX >= 0 && previewPath is not null
+            ? $"Destino: ({hoveredX}, {hoveredY})   Coste: {previewPath.MovementCost} PM"
             : "Movimiento: pasa el cursor por una casilla alcanzable"
-        : $"HECHIZO: {selectedSpell.Name}   Objetivos válidos: morado   Esc: cancelar";
-    Raylib.DrawText(modeText, 24, screenHeight - 34, 17, new Color(236, 190, 73, 255));
-    Raylib.DrawText(feedback, 24, screenHeight - 62, 16, new Color(205, 215, 211, 255));
-    Raylib.DrawText("Clic: mover/lanzar   1/2: hechizo   ESPACIO: finalizar turno", 24, screenHeight - 88, 15,
-        new Color(183, 191, 184, 255));
+        : "Rango oro · LoS bloqueada ocre · válido verde";
+    hud.Draw(currentFighter, turnManager.RoundNumber, spells, selectedSpell, spellCasting, fighters,
+        turnManager.CurrentFighter, remainingTurnSeconds, feedback, modeText);
     if (battleResult.IsFinished)
         DrawBattleOverlay(battleResult, playerTeamId);
     Raylib.EndDrawing();
@@ -233,7 +296,22 @@ while (!Raylib.WindowShouldClose())
     if (battleResult.IsFinished && Raylib.IsKeyPressed(KeyboardKey.Escape)) break;
 }
 
+renderer.Dispose();
 Raylib.CloseWindow();
+
+static Fighter CopyForSelectedClass(Fighter source, PlayerClass playerClass)
+{
+    // El kit inicial del prototipo diferencia ambas clases y mantiene los atributos ligados a su elemento.
+    var stats = playerClass switch
+    {
+        PlayerClass.Ocra => new Stats(vitality: 10, strength: 5, intelligence: 5, agility: 25, luck: 10),
+        PlayerClass.Yopuka => new Stats(vitality: 20, strength: 30, intelligence: 0, agility: 5, luck: 5),
+        _ => source.Stats
+    };
+    var baseHealth = Math.Max(1, source.HP - source.Stats.Vitality);
+    return new Fighter(source.Id, source.Name, source.X, source.Y, source.MaxActionPoints,
+        source.MaxMovementPoints, baseHealth, source.Initiative, source.TeamId, playerClass, stats);
+}
 
 PathResult? FindPathFor(Fighter fighter, int targetX, int targetY)
 {
@@ -272,24 +350,6 @@ static bool TryGetCharacteristicInput(out CharacteristicAttribute attribute)
     return true;
 }
 
-static int GetClickedSpellCard(Vector2 pointer, bool mousePressed)
-{
-    if (!mousePressed) return -1;
-    const int cardX = 984;
-    const int cardWidth = 254;
-    const int cardHeight = 54;
-    const int firstCardY = 510;
-    const int cardGap = 8;
-    for (var index = 0; index < 2; index++)
-    {
-        var cardY = firstCardY + index * (cardHeight + cardGap);
-        if (pointer.X >= cardX && pointer.X <= cardX + cardWidth &&
-            pointer.Y >= cardY && pointer.Y <= cardY + cardHeight)
-            return index;
-    }
-    return -1;
-}
-
 static string DescribeCastResult(SpellCastResult result, Fighter caster, Spell spell, Fighter target) => result switch
 {
     SpellCastResult.Success => $"{spell.Name}: {target.Name} recibe {spell.CalculateDamage(caster.Stats)} de daño.",
@@ -302,62 +362,6 @@ static string DescribeCastResult(SpellCastResult result, Fighter caster, Spell s
     SpellCastResult.InvalidTarget => "Este hechizo solo puede usarse sobre un aliado.",
     _ => "No se pudo lanzar el hechizo."
 };
-
-static void DrawHud(Fighter fighter, int roundNumber, IReadOnlyList<Spell> spells,
-    Spell? selectedSpell, SpellCastingService spellCasting)
-{
-    const int panelX = 970;
-    const int panelY = 150;
-    const int panelWidth = 282;
-    const int panelHeight = 540;
-    var background = new Color(34, 42, 46, 255);
-    var foreground = new Color(234, 226, 201, 255);
-
-    Raylib.DrawRectangle(panelX, panelY, panelWidth, panelHeight, background);
-    Raylib.DrawRectangleLines(panelX, panelY, panelWidth, panelHeight, new Color(91, 113, 104, 255));
-    Raylib.DrawText("PERSONAJE ACTIVO", panelX + 18, panelY + 18, 16, new Color(236, 190, 73, 255));
-    Raylib.DrawText(fighter.Name, panelX + 18, panelY + 48, 28, foreground);
-    Raylib.DrawText($"Clase: {fighter.Class}", panelX + 18, panelY + 82, 16, foreground);
-    Raylib.DrawText($"Nivel {fighter.Level}", panelX + 18, panelY + 104, 16, foreground);
-    Raylib.DrawText($"XP {fighter.Experience}/{fighter.ExperienceToNextLevel}", panelX + 18, panelY + 126, 14, foreground);
-    const int experienceBarWidth = panelWidth - 36;
-    Raylib.DrawRectangle(panelX + 18, panelY + 148, experienceBarWidth, 8, new Color(45, 55, 58, 255));
-    var progressWidth = experienceBarWidth * fighter.Experience / (float)fighter.ExperienceToNextLevel;
-    Raylib.DrawRectangle(panelX + 18, panelY + 148, (int)progressWidth, 8, new Color(112, 214, 130, 255));
-    Raylib.DrawText($"Vida: {fighter.HP}/{fighter.MaxHP}", panelX + 18, panelY + 168, 18, foreground);
-    Raylib.DrawText($"PA: {fighter.ActionPoints}/{fighter.MaxActionPoints}", panelX + 18, panelY + 194, 18, foreground);
-    Raylib.DrawText($"PM: {fighter.MovementPoints}/{fighter.MaxMovementPoints}", panelX + 18, panelY + 220, 18, foreground);
-    Raylib.DrawText($"VIT {fighter.Stats.Vitality}  FUE {fighter.Stats.Strength}  INT {fighter.Stats.Intelligence}",
-        panelX + 18, panelY + 250, 14, foreground);
-    Raylib.DrawText($"AGI {fighter.Stats.Agility}  SUE {fighter.Stats.Luck}",
-        panelX + 18, panelY + 270, 14, foreground);
-    Raylib.DrawText($"Puntos: {fighter.AvailableCharacteristicPoints} | 3 VIT 4 FUE 5 INT 6 AGI 7 SUE",
-        panelX + 18, panelY + 292, 12, new Color(236, 190, 73, 255));
-    Raylib.DrawText($"Posición: ({fighter.X}, {fighter.Y})   Ronda: {roundNumber}",
-        panelX + 18, panelY + 316, 14, foreground);
-    Raylib.DrawText("HECHIZOS DE CLASE  (teclas 1 y 2)", panelX + 18, panelY + 338, 15, foreground);
-    for (var index = 0; index < spells.Count; index++)
-    {
-        var spell = spells[index];
-        const int cardX = panelX + 14;
-        const int cardWidth = panelWidth - 28;
-        const int cardHeight = 54;
-        var cardY = panelY + 360 + index * (cardHeight + 8);
-        var isSelected = selectedSpell?.Id == spell.Id;
-        var cardColor = isSelected ? new Color(76, 94, 111, 255) : new Color(45, 55, 58, 255);
-        Raylib.DrawRectangle(cardX, cardY, cardWidth, cardHeight, cardColor);
-        Raylib.DrawRectangleLines(cardX, cardY, cardWidth, cardHeight,
-            isSelected ? new Color(236, 190, 73, 255) : new Color(76, 92, 87, 255));
-        Raylib.DrawText($"{index + 1}. {spell.Name}  ·  {spell.ActionPointCost} PA", cardX + 8, cardY + 7, 15, foreground);
-        var remainingCooldown = spellCasting.GetRemainingCooldownTurns(fighter, spell);
-        var cooldownText = remainingCooldown == 0 ? "Listo" : $"CD {remainingCooldown}";
-        var effectiveDamage = spell.CalculateDamage(fighter.Stats);
-        Raylib.DrawText($"Alcance {spell.MinimumRange}-{spell.MaximumRange}  ·  Daño {effectiveDamage}  ·  {cooldownText}",
-            cardX + 8, cardY + 31, 12, new Color(190, 201, 195, 255));
-    }
-    var modeLabel = selectedSpell is null ? "Modo: movimiento" : $"Modo: {selectedSpell.Name}";
-    Raylib.DrawText(modeLabel, panelX + 18, panelY + 490, 14, new Color(236, 190, 73, 255));
-}
 
 static void DrawBattleOverlay(BattleResult result, string playerTeamId)
 {
