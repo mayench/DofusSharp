@@ -54,7 +54,7 @@ internal sealed class IsometricGrid
                 var y = diagonal - x;
                 var cell = grid.GetCell(x, y);
                 var center = GridToScreen(x, y);
-                var fill = GetCellColor(cell);
+                var fill = GetCellColor(cell, x, y);
                 if (movementPath?.Contains((x, y)) == true)
                     fill = new Color(54, 145, 164, 255);
                 if (spellTargets?.Contains((x, y)) == true)
@@ -69,16 +69,22 @@ internal sealed class IsometricGrid
 
     public void DrawFighter(Vector2 center, Fighter fighter, bool isActive)
     {
-        var color = !fighter.IsAlive
-            ? new Color(96, 96, 96, 255)
-            : isActive ? new Color(236, 190, 73, 255) : new Color(106, 174, 219, 255);
-        Raylib.DrawCircleV(center, 11f, color);
-        Raylib.DrawCircleLines((int)center.X, (int)center.Y, 12, new Color(22, 27, 32, 255));
-        Raylib.DrawText(fighter.Name, (int)center.X - 20, (int)center.Y - 31, 12,
-            new Color(244, 240, 222, 255));
-        Raylib.DrawRectangle((int)center.X - 18, (int)center.Y + 14, 36, 4, new Color(103, 39, 42, 255));
+        var teamColor = fighter.TeamId == "blue"
+            ? new Color(78, 144, 180, 255)
+            : new Color(185, 83, 72, 255);
+        var body = fighter.IsAlive ? teamColor : new Color(92, 94, 91, 255);
+        Raylib.DrawEllipse((int)center.X, (int)center.Y + 8, 16, 7, new Color(20, 24, 23, 130));
+        Raylib.DrawCircleV(center, isActive ? 17f : 15f, isActive ? new Color(238, 190, 72, 255) : new Color(40, 46, 44, 255));
+        Raylib.DrawCircleV(center, isActive ? 12f : 11f, body);
+        Raylib.DrawCircle((int)center.X - 3, (int)center.Y - 4, 3, new Color(255, 249, 222, 210));
+        Raylib.DrawCircleLines((int)center.X, (int)center.Y, isActive ? 17 : 15,
+            isActive ? new Color(255, 221, 128, 255) : new Color(26, 34, 34, 255));
+        Raylib.DrawRectangle((int)center.X - 25, (int)center.Y - 35, 50, 16, new Color(28, 35, 38, 225));
+        Raylib.DrawText(fighter.Name, (int)center.X - 22, (int)center.Y - 34, 11,
+            fighter.IsAlive ? new Color(244, 240, 222, 255) : new Color(151, 152, 147, 255));
+        Raylib.DrawRectangle((int)center.X - 19, (int)center.Y + 17, 38, 5, new Color(73, 41, 43, 255));
         var healthRatio = fighter.MaxHP == 0 ? 0f : (float)fighter.HP / fighter.MaxHP;
-        Raylib.DrawRectangle((int)center.X - 18, (int)center.Y + 14, (int)(36 * healthRatio), 4,
+        Raylib.DrawRectangle((int)center.X - 19, (int)center.Y + 17, (int)(38 * healthRatio), 5,
             new Color(85, 190, 100, 255));
     }
 
@@ -99,11 +105,13 @@ internal sealed class IsometricGrid
         Raylib.DrawLineV(left, top, outline);
     }
 
-    private static Color GetCellColor(GridCell cell)
+    private static Color GetCellColor(GridCell cell, int x, int y)
     {
-        if (!cell.IsWalkable && !cell.LineOfSight) return new Color(91, 45, 91, 255);
-        if (!cell.IsWalkable) return new Color(145, 62, 54, 255);
-        if (!cell.LineOfSight) return new Color(65, 83, 143, 255);
-        return new Color(66, 111, 81, 255);
+        if (!cell.IsWalkable && !cell.LineOfSight) return new Color(91, 63, 84, 255);
+        if (!cell.IsWalkable) return new Color(103, 91, 77, 255);
+        if (!cell.LineOfSight) return new Color(89, 105, 126, 255);
+        return (x + y) % 2 == 0
+            ? new Color(178, 158, 108, 255)
+            : new Color(190, 170, 119, 255);
     }
 }
