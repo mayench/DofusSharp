@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DofusSharp.Tests", "tests\D
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DofusSharp.GameState", "src\DofusSharp.GameState\DofusSharp.GameState.csproj", "{82BA97DD-8531-4E3E-B0B0-5C8643FB4CD7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DofusSharp.Presentation", "src\DofusSharp.Presentation\DofusSharp.Presentation.csproj", "{1FB6880F-804C-482D-BA4A-0246407714BC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -71,6 +73,18 @@ Global
 		{82BA97DD-8531-4E3E-B0B0-5C8643FB4CD7}.Release|x64.Build.0 = Release|Any CPU
 		{82BA97DD-8531-4E3E-B0B0-5C8643FB4CD7}.Release|x86.ActiveCfg = Release|Any CPU
 		{82BA97DD-8531-4E3E-B0B0-5C8643FB4CD7}.Release|x86.Build.0 = Release|Any CPU
+		{1FB6880F-804C-482D-BA4A-0246407714BC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1FB6880F-804C-482D-BA4A-0246407714BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1FB6880F-804C-482D-BA4A-0246407714BC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1FB6880F-804C-482D-BA4A-0246407714BC}.Debug|x64.Build.0 = Debug|Any CPU
+		{1FB6880F-804C-482D-BA4A-0246407714BC}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1FB6880F-804C-482D-BA4A-0246407714BC}.Debug|x86.Build.0 = Debug|Any CPU
+		{1FB6880F-804C-482D-BA4A-0246407714BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1FB6880F-804C-482D-BA4A-0246407714BC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1FB6880F-804C-482D-BA4A-0246407714BC}.Release|x64.ActiveCfg = Release|Any CPU
+		{1FB6880F-804C-482D-BA4A-0246407714BC}.Release|x64.Build.0 = Release|Any CPU
+		{1FB6880F-804C-482D-BA4A-0246407714BC}.Release|x86.ActiveCfg = Release|Any CPU
+		{1FB6880F-804C-482D-BA4A-0246407714BC}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -80,5 +94,6 @@ Global
 		{F2B4F24B-3F7B-4DDE-9DBF-CC572ED9F3F5} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{54BDD98E-BEF8-4AE7-9CA5-660595095B0E} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{82BA97DD-8531-4E3E-B0B0-5C8643FB4CD7} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{1FB6880F-804C-482D-BA4A-0246407714BC} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

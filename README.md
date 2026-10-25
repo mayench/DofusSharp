@@ -11,7 +11,7 @@ DofusSharp/
 │   ├── DofusSharp.Combat/             # Cálculos de combate: pathfinding, alcance, línea de visión
 │   ├── DofusSharp.Application/        # Casos de uso y coordinación de comandos
 │   ├── DofusSharp.GameState/          # Estado de partida, turnos, equipos y ocupación
-│   └── DofusSharp.Presentation/       # Renderizado 2D y conversión isométrica
+│   └── DofusSharp.Presentation/       # Ventana interactiva raylib y conversión isométrica
 └── tests/
     └── DofusSharp.Tests/              # Pruebas unitarias de dominio y combate
 ```
@@ -29,3 +29,11 @@ DofusSharp/
 7. **Integración y datos** — serialización de mapas/combates, carga de escenarios y puntos de extensión para cliente de juego.
 
 Cada módulo debe mantener las reglas puras en `Domain`/`Combat`, y dejar la orquestación, persistencia y presentación en capas separadas. La solución debe incorporar los proyectos cuando estos módulos pasen de propuesta a implementación.
+
+## Ejecutar la presentación
+
+```sh
+dotnet run --project src/DofusSharp.Presentation
+```
+
+La demo abre una ventana de 1100 × 720 con una cuadrícula de 14 × 20 celdas. Al mover el puntero sobre un rombo, la celda se resalta y se muestran sus coordenadas lógicas. Verde representa terreno transitable, rojo bloquea movimiento, azul bloquea línea de visión y morado bloquea ambos.
