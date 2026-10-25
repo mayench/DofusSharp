@@ -17,7 +17,12 @@ const string playerTeamId = "blue";
 var mapPath = Path.Combine(AppContext.BaseDirectory, "Maps", "arena.json");
 var loadedMap = new JsonMapLoader().LoadFromFile(mapPath);
 var grid = loadedMap.Grid;
-var fighters = loadedMap.Fighters.ToList();
+Raylib.InitWindow(screenWidth, screenHeight, "DofusSharp - Aventuras del Mundo de los Doce");
+Raylib.SetTargetFPS(60);
+var chosenClass = ClassSelectionScreen.Choose();
+var opposingClass = chosenClass == PlayerClass.Ocra ? PlayerClass.Yopuka : PlayerClass.Ocra;
+var fighters = loadedMap.Fighters.Select(fighter => CopyForSelectedClass(fighter,
+    fighter.TeamId == playerTeamId ? chosenClass : opposingClass)).ToList();
 var turnManager = new TurnManager(fighters);
 var pathfinder = new AStarPathfinder();
 var battleState = new BattleStateService(grid);
@@ -40,9 +45,6 @@ var enemyTurnPlanned = false;
 const float turnDurationSeconds = 30f;
 var timedFighterId = turnManager.CurrentFighter.Id;
 var remainingTurnSeconds = turnDurationSeconds;
-
-Raylib.InitWindow(screenWidth, screenHeight, "DofusSharp - Movimiento táctico");
-Raylib.SetTargetFPS(60);
 
 while (!Raylib.WindowShouldClose())
 {
@@ -239,7 +241,7 @@ while (!Raylib.WindowShouldClose())
             : previewPath.Path.Skip(1).Select(cell => (cell.X, cell.Y)).ToHashSet());
 
     Raylib.BeginDrawing();
-    Raylib.ClearBackground(new Color(18, 24, 29, 255));
+    Raylib.ClearBackground(new Color(130, 142, 91, 255));
     renderer.Draw(grid, hoveredX, hoveredY, pathCells, spellTargetCells);
 
     foreach (var fighter in fighters.OrderBy(entity => entity.X + entity.Y))
@@ -252,8 +254,8 @@ while (!Raylib.WindowShouldClose())
     }
 
     var modeText = selectedSpell is null
-        ? hoveredX >= 0
-            ? $"Destino: ({hoveredX}, {hoveredY})   Coste: {previewPath!.MovementCost} PM"
+        ? hoveredX >= 0 && previewPath is not null
+            ? $"Destino: ({hoveredX}, {hoveredY})   Coste: {previewPath.MovementCost} PM"
             : "Movimiento: pasa el cursor por una casilla alcanzable"
         : $"HECHIZO: {selectedSpell.Name}   Objetivos válidos: morado   Esc: cancelar";
     hud.Draw(currentFighter, turnManager.RoundNumber, spells, selectedSpell, spellCasting, fighters,
@@ -265,7 +267,22 @@ while (!Raylib.WindowShouldClose())
     if (battleResult.IsFinished && Raylib.IsKeyPressed(KeyboardKey.Escape)) break;
 }
 
+renderer.Dispose();
 Raylib.CloseWindow();
+
+static Fighter CopyForSelectedClass(Fighter source, PlayerClass playerClass)
+{
+    // El kit inicial del prototipo diferencia ambas clases y mantiene los atributos ligados a su elemento.
+    var stats = playerClass switch
+    {
+        PlayerClass.Ocra => new Stats(vitality: 10, strength: 5, intelligence: 5, agility: 25, luck: 10),
+        PlayerClass.Yopuka => new Stats(vitality: 20, strength: 30, intelligence: 0, agility: 5, luck: 5),
+        _ => source.Stats
+    };
+    var baseHealth = Math.Max(1, source.HP - source.Stats.Vitality);
+    return new Fighter(source.Id, source.Name, source.X, source.Y, source.MaxActionPoints,
+        source.MaxMovementPoints, baseHealth, source.Initiative, source.TeamId, playerClass, stats);
+}
 
 PathResult? FindPathFor(Fighter fighter, int targetX, int targetY)
 {

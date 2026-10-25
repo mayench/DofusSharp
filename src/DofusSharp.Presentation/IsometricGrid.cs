@@ -5,12 +5,14 @@ using Raylib_cs;
 namespace DofusSharp.Presentation;
 
 /// <summary>Dibuja el tablero lógico como rombos y convierte el puntero a celdas de la cuadrícula.</summary>
-internal sealed class IsometricGrid
+internal sealed class IsometricGrid : IDisposable
 {
     private readonly float _originX;
     private readonly float _originY;
     private readonly float _tileWidth;
     private readonly float _tileHeight;
+    private readonly Texture2D _yopukaSprite;
+    private readonly Texture2D _ocraSprite;
 
     public IsometricGrid(float originX, float originY, float tileWidth, float tileHeight)
     {
@@ -18,6 +20,9 @@ internal sealed class IsometricGrid
         _originY = originY;
         _tileWidth = tileWidth;
         _tileHeight = tileHeight;
+        var assets = Path.Combine(AppContext.BaseDirectory, "Assets");
+        _yopukaSprite = Raylib.LoadTexture(Path.Combine(assets, "yopuka.png"));
+        _ocraSprite = Raylib.LoadTexture(Path.Combine(assets, "ocra.png"));
     }
 
     /// <summary>Proyecta índices lógicos a centros de rombos en pantalla.</summary>
@@ -69,23 +74,36 @@ internal sealed class IsometricGrid
 
     public void DrawFighter(Vector2 center, Fighter fighter, bool isActive)
     {
-        var teamColor = fighter.TeamId == "blue"
-            ? new Color(78, 144, 180, 255)
-            : new Color(185, 83, 72, 255);
-        var body = fighter.IsAlive ? teamColor : new Color(92, 94, 91, 255);
-        Raylib.DrawEllipse((int)center.X, (int)center.Y + 8, 16, 7, new Color(20, 24, 23, 130));
-        Raylib.DrawCircleV(center, isActive ? 17f : 15f, isActive ? new Color(238, 190, 72, 255) : new Color(40, 46, 44, 255));
-        Raylib.DrawCircleV(center, isActive ? 12f : 11f, body);
-        Raylib.DrawCircle((int)center.X - 3, (int)center.Y - 4, 3, new Color(255, 249, 222, 210));
-        Raylib.DrawCircleLines((int)center.X, (int)center.Y, isActive ? 17 : 15,
-            isActive ? new Color(255, 221, 128, 255) : new Color(26, 34, 34, 255));
-        Raylib.DrawRectangle((int)center.X - 25, (int)center.Y - 35, 50, 16, new Color(28, 35, 38, 225));
-        Raylib.DrawText(fighter.Name, (int)center.X - 22, (int)center.Y - 34, 11,
-            fighter.IsAlive ? new Color(244, 240, 222, 255) : new Color(151, 152, 147, 255));
-        Raylib.DrawRectangle((int)center.X - 19, (int)center.Y + 17, 38, 5, new Color(73, 41, 43, 255));
+        var sprite = fighter.Class == PlayerClass.Ocra ? _ocraSprite : _yopukaSprite;
+        var spriteScale = 0.24f;
+        var spriteWidth = sprite.Width * spriteScale;
+        var spriteHeight = sprite.Height * spriteScale;
+        Raylib.DrawEllipse((int)center.X, (int)center.Y + 7, 20, 8, new Color(62, 66, 39, 115));
+        if (isActive)
+        {
+            Raylib.DrawEllipseLines((int)center.X, (int)center.Y + 7, 23, 9, new Color(199, 148, 54, 255));
+            Raylib.DrawCircle((int)center.X, (int)(center.Y - spriteHeight - 8), 4,
+                new Color(199, 148, 54, 255));
+        }
+        Raylib.DrawTextureEx(sprite,
+            new Vector2(center.X - spriteWidth / 2f, center.Y - spriteHeight + 5), 0, spriteScale,
+            fighter.IsAlive ? Color.White : new Color(140, 135, 125, 180));
+        Raylib.DrawRectangle((int)center.X - 34, (int)(center.Y - spriteHeight - 32), 68, 18,
+            new Color(236, 223, 182, 235));
+        Raylib.DrawRectangleLines((int)center.X - 34, (int)(center.Y - spriteHeight - 32), 68, 18,
+            new Color(150, 113, 57, 255));
+        Raylib.DrawText(fighter.Name, (int)center.X - 29, (int)(center.Y - spriteHeight - 29), 11,
+            fighter.IsAlive ? new Color(83, 53, 34, 255) : new Color(124, 117, 101, 255));
+        Raylib.DrawRectangle((int)center.X - 19, (int)center.Y + 16, 38, 5, new Color(115, 72, 54, 255));
         var healthRatio = fighter.MaxHP == 0 ? 0f : (float)fighter.HP / fighter.MaxHP;
         Raylib.DrawRectangle((int)center.X - 19, (int)center.Y + 17, (int)(38 * healthRatio), 5,
             new Color(85, 190, 100, 255));
+    }
+
+    public void Dispose()
+    {
+        Raylib.UnloadTexture(_yopukaSprite);
+        Raylib.UnloadTexture(_ocraSprite);
     }
 
     private void DrawDiamond(Vector2 center, Color fill, Color outline)
@@ -107,11 +125,11 @@ internal sealed class IsometricGrid
 
     private static Color GetCellColor(GridCell cell, int x, int y)
     {
-        if (!cell.IsWalkable && !cell.LineOfSight) return new Color(91, 63, 84, 255);
-        if (!cell.IsWalkable) return new Color(103, 91, 77, 255);
-        if (!cell.LineOfSight) return new Color(89, 105, 126, 255);
+        if (!cell.IsWalkable && !cell.LineOfSight) return new Color(126, 88, 67, 255);
+        if (!cell.IsWalkable) return new Color(132, 117, 84, 255);
+        if (!cell.LineOfSight) return new Color(126, 139, 104, 255);
         return (x + y) % 2 == 0
-            ? new Color(178, 158, 108, 255)
-            : new Color(190, 170, 119, 255);
+            ? new Color(197, 174, 119, 255)
+            : new Color(210, 187, 131, 255);
     }
 }
