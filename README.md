@@ -22,7 +22,7 @@ DofusSharp/
 
 1. **Base del combate** — ✅ dominio de casillas y combatientes, distancias, A* ortogonal y pruebas de regresión.
 2. **Estado y ocupación** — tablero de combate con ocupación por combatiente y validación atómica de movimientos.
-3. **Gestión de turnos** — en progreso: cola estable por iniciativa, avance circular y refresco de PA/PM en `DofusSharp.GameState`; queda conectar bajas y fin de combate.
+3. **Gestión de turnos** — en progreso: cola estable por iniciativa, avance circular, salto de combatientes derrotados y refresco de PA/PM en `DofusSharp.GameState`; `DofusSharp.Combat` determina victoria/derrota y libera celdas al morir.
 4. **Línea de visión** — en progreso: Bresenham en coordenadas lógicas, bloqueos por terreno/opacidad e integración obligatoria con hechizos.
 5. **Sistema de hechizos** — en progreso: definición de hechizos, coste PA, alcance Manhattan, daño base y cooldown por turno del lanzador; quedan áreas, línea de visión y efectos.
 6. **Presentación isométrica** — en progreso: proyección de la cuadrícula, vista previa A*, movimiento animado con coste de PM, HUD, selección de hechizos, alcance/LoS y lanzamiento.
